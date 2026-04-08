@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trending Searches</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+        }
+
+        /* ── Header / Nav ── */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        header h1 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        nav { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+        nav a {
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        nav a:hover { color: #e6edf3; background: #21262d; }
+        nav a.active { color: #e6edf3; border-color: #30363d; background: #21262d; }
+
+        /* ── Controls bar ── */
+        .controls-bar {
+            position: sticky;
+            top: 57px;
+            z-index: 99;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 12px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        .page-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+        }
+
+        /* Google-style multicolour "G" */
+        .g-icon span { font-weight: 900; font-size: 1.2rem; }
+        .g-b { color: #4285F4; }
+        .g-r { color: #EA4335; }
+        .g-y { color: #FBBC05; }
+        .g-g { color: #34A853; }
+
+        select {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #e6edf3;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+        select:focus { outline: 1px solid #4285F4; border-color: #4285F4; }
+
+        .updated-label {
+            font-size: 0.75rem;
+            color: #484f58;
+            margin-left: auto;
+        }
+        .updated-label span { color: #8b949e; }
+
+        /* ── Trends list ── */
+        .trends-list {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 16px 24px 60px;
+        }
+
+        /* ── Single trend row ── */
+        .trend-row {
+            border-bottom: 1px solid #21262d;
+            padding: 0;
+            transition: background 0.15s;
+        }
+        .trend-row:last-child { border-bottom: none; }
+
+        .trend-main {
+            display: grid;
+            grid-template-columns: 56px 1fr auto;
+            gap: 16px;
+            align-items: start;
+            padding: 18px 0;
+            cursor: pointer;
+        }
+        .trend-main:hover { background: transparent; }
+        .trend-row:hover { background: #161b22; border-radius: 8px; }
+
+        .trend-rank {
+            font-size: 1.6rem;
+            font-weight: 700;
+            color: #30363d;
+            text-align: right;
+            padding-top: 2px;
+            font-variant-numeric: tabular-nums;
+            flex-shrink: 0;
+        }
+
+        .trend-body { overflow: hidden; }
+
+        .trend-title-row {
+            display: flex;
+            align-items: baseline;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-bottom: 6px;
+        }
+
+        .trend-title {
+            font-size: 1.15rem;
+            font-weight: 700;
+            color: #e6edf3;
+            text-decoration: none;
+            line-height: 1.3;
+        }
+        .trend-title:hover { color: #4285F4; }
+
+        .traffic-badge {
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: #34A853;
+            background: rgba(52,168,83,0.12);
+            border: 1px solid rgba(52,168,83,0.3);
+            border-radius: 12px;
+            padding: 2px 9px;
+            white-space: nowrap;
+        }
+
+        /* Trend bar */
+        .trend-bar-wrap {
+            height: 4px;
+            background: #21262d;
+            border-radius: 2px;
+            margin-bottom: 10px;
+            overflow: hidden;
+        }
+        .trend-bar-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #4285F4, #34A853);
+            transition: width 0.6s ease;
+        }
+
+        /* News preview (always visible, 1 headline) */
+        .news-preview {
+            display: flex;
+            align-items: start;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: #8b949e;
+            margin-top: 4px;
+        }
+        .news-preview .source {
+            color: #58a6ff;
+            font-weight: 500;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+        .news-preview .headline { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .news-preview .headline a { color: #8b949e; text-decoration: none; }
+        .news-preview .headline a:hover { color: #e6edf3; }
+
+        /* Expand toggle */
+        .expand-btn {
+            background: none;
+            border: none;
+            color: #484f58;
+            cursor: pointer;
+            padding: 6px;
+            font-size: 1rem;
+            transition: color 0.15s, transform 0.2s;
+            flex-shrink: 0;
+            margin-top: 4px;
+        }
+        .expand-btn:hover { color: #8b949e; }
+        .expand-btn.open { transform: rotate(180deg); color: #58a6ff; }
+
+        /* Expanded news articles */
+        .news-expanded {
+            display: none;
+            padding: 0 0 18px 72px;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .news-expanded.open { display: flex; }
+
+        .article-card {
+            background: #0d1117;
+            border: 1px solid #21262d;
+            border-radius: 8px;
+            padding: 12px 14px;
+            transition: border-color 0.15s;
+        }
+        .article-card:hover { border-color: #30363d; }
+
+        .article-source-row {
+            font-size: 0.72rem;
+            color: #484f58;
+            margin-bottom: 4px;
+        }
+        .article-source-row .src { color: #58a6ff; font-weight: 600; }
+
+        .article-title {
+            font-size: 0.88rem;
+            font-weight: 600;
+            line-height: 1.4;
+            margin-bottom: 4px;
+        }
+        .article-title a { color: #e6edf3; text-decoration: none; }
+        .article-title a:hover { color: #4285F4; }
+
+        .article-snippet {
+            font-size: 0.78rem;
+            color: #8b949e;
+            line-height: 1.45;
+        }
+
+        /* ── Empty / loading ── */
+        #loading {
+            text-align: center;
+            padding: 80px 20px;
+            color: #484f58;
+        }
+        #loading h2 { font-size: 1rem; margin-bottom: 8px; color: #8b949e; }
+
+        .dot-pulse {
+            display: inline-flex;
+            gap: 5px;
+            margin-top: 12px;
+        }
+        .dot-pulse span {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: #4285F4;
+            animation: dp 1.2s ease-in-out infinite;
+        }
+        .dot-pulse span:nth-child(2) { animation-delay: 0.2s; background: #EA4335; }
+        .dot-pulse span:nth-child(3) { animation-delay: 0.4s; background: #FBBC05; }
+        .dot-pulse span:nth-child(4) { animation-delay: 0.6s; background: #34A853; }
+        @keyframes dp { 0%,80%,100%{opacity:.2;transform:scale(.8)} 40%{opacity:1;transform:scale(1)} }
+
+        @media (max-width: 640px) {
+            .trends-list { padding: 12px 12px 60px; }
+            .trend-rank { font-size: 1.2rem; }
+            .trend-title { font-size: 1rem; }
+            .news-expanded { padding-left: 12px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>
+        <span class="g-icon">
+            <span class="g-b">G</span><span class="g-r">o</span><span class="g-y">o</span><span class="g-b">g</span><span class="g-g">l</span><span class="g-r">e</span>
+        </span>
+        Trending
+    </h1>
+    <nav>
+        <a href="/">News</a>
+        <a href="/google-trends.html">Google Trends</a>
+        <a href="/trending.html" class="active">Trending</a>
+        <a href="/wikipedia.html">Live Feed</a>
+        <a href="/bluesky.html">Bluesky</a>
+        <a href="/crypto.html">Crypto</a>
+        <a href="/trends.html">Wiki Trends</a>
+    </nav>
+</header>
+
+<div class="controls-bar">
+    <div class="page-title">Trending searches</div>
+    <select id="geo-select">
+        <option value="AU">Australia</option>
+        <option value="US">United States</option>
+        <option value="GB">United Kingdom</option>
+        <option value="CA">Canada</option>
+        <option value="NZ">New Zealand</option>
+        <option value="IN">India</option>
+        <option value="ZA">South Africa</option>
+        <option value="SG">Singapore</option>
+        <option value="DE">Germany</option>
+        <option value="FR">France</option>
+        <option value="JP">Japan</option>
+        <option value="BR">Brazil</option>
+        <option value="MX">Mexico</option>
+        <option value="IT">Italy</option>
+        <option value="ES">Spain</option>
+        <option value="KR">South Korea</option>
+        <option value="AR">Argentina</option>
+        <option value="EG">Egypt</option>
+        <option value="NG">Nigeria</option>
+        <option value="KE">Kenya</option>
+    </select>
+    <div class="updated-label">Updated: <span id="update-time">—</span></div>
+</div>
+
+<div class="trends-list" id="trends-list">
+    <div id="loading">
+        <h2>Fetching trending searches…</h2>
+        <div class="dot-pulse"><span></span><span></span><span></span><span></span></div>
+    </div>
+</div>
+
+<script>
+    const list       = document.getElementById('trends-list');
+    const geoSelect  = document.getElementById('geo-select');
+    const updateTime = document.getElementById('update-time');
+
+    let eventSource = null;
+
+    // ── Traffic string → number ──────────────────────────────────────────────
+    function parseTraffic(str) {
+        if (!str) return 0;
+        const s = str.replace(/\+|,|\s/g, '');
+        const n = parseFloat(s);
+        if (isNaN(n)) return 0;
+        if (/M/i.test(s)) return n * 1_000_000;
+        if (/K/i.test(s)) return n * 1_000;
+        return n;
+    }
+
+    function fmtTraffic(str) {
+        return str ? str.replace(/\+$/, '').trim() + '+ searches' : '';
+    }
+
+    // ── Time since pubDate ───────────────────────────────────────────────────
+    function timeAgo(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d)) return '';
+        const h = Math.round((Date.now() - d) / 3600000);
+        if (h < 1)  return 'just now';
+        if (h < 24) return h + 'h ago';
+        return Math.round(h / 24) + 'd ago';
+    }
+
+    function esc(s) {
+        return String(s || '')
+            .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ── Render ───────────────────────────────────────────────────────────────
+    function render(trends) {
+        if (!trends || trends.length === 0) {
+            list.innerHTML = '<div id="loading"><h2>No data available for this region yet.</h2></div>';
+            return;
+        }
+
+        const maxTraffic = Math.max(...trends.map(t => parseTraffic(t.approxTraffic)), 1);
+
+        list.innerHTML = trends.map((t, i) => {
+            const pct       = Math.round((parseTraffic(t.approxTraffic) / maxTraffic) * 100);
+            const firstArticle = t.articles && t.articles[0];
+            const hasMore   = t.articles && t.articles.length > 1;
+            const rowId     = 'trend-' + i;
+
+            const expandedArticles = (t.articles || []).map(a => `
+                <div class="article-card">
+                    <div class="article-source-row">
+                        <span class="src">${esc(a.source)}</span>
+                    </div>
+                    <div class="article-title">
+                        ${a.url
+                            ? `<a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a>`
+                            : esc(a.title)}
+                    </div>
+                    ${a.snippet ? `<div class="article-snippet">${esc(a.snippet)}</div>` : ''}
+                </div>
+            `).join('');
+
+            return `
+            <div class="trend-row" id="${rowId}">
+                <div class="trend-main" onclick="toggle('${rowId}')">
+                    <div class="trend-rank">${i + 1}</div>
+                    <div class="trend-body">
+                        <div class="trend-title-row">
+                            <a class="trend-title"
+                               href="${esc(t.searchUrl)}"
+                               target="_blank" rel="noopener"
+                               onclick="event.stopPropagation()">${esc(t.title)}</a>
+                            ${t.approxTraffic
+                                ? `<span class="traffic-badge">${esc(fmtTraffic(t.approxTraffic))}</span>`
+                                : ''}
+                        </div>
+                        <div class="trend-bar-wrap">
+                            <div class="trend-bar-fill" style="width:${pct}%"></div>
+                        </div>
+                        ${firstArticle ? `
+                        <div class="news-preview">
+                            <span class="source">${esc(firstArticle.source)}</span>
+                            <span class="headline">
+                                <a href="${esc(firstArticle.url)}" target="_blank" rel="noopener"
+                                   onclick="event.stopPropagation()">${esc(firstArticle.title)}</a>
+                            </span>
+                        </div>` : ''}
+                    </div>
+                    ${t.articles && t.articles.length > 0
+                        ? `<button class="expand-btn" id="btn-${rowId}" aria-label="Expand">&#8964;</button>`
+                        : '<div></div>'}
+                </div>
+                ${t.articles && t.articles.length > 0
+                    ? `<div class="news-expanded" id="exp-${rowId}">${expandedArticles}</div>`
+                    : ''}
+            </div>`;
+        }).join('');
+
+        updateTime.textContent = new Date().toLocaleTimeString();
+    }
+
+    // ── Toggle expand ────────────────────────────────────────────────────────
+    function toggle(rowId) {
+        const exp = document.getElementById('exp-' + rowId);
+        const btn = document.getElementById('btn-' + rowId);
+        if (!exp) return;
+        const open = exp.classList.toggle('open');
+        if (btn) btn.classList.toggle('open', open);
+    }
+
+    // ── Connect SSE ──────────────────────────────────────────────────────────
+    function connect(geo) {
+        if (eventSource) eventSource.close();
+        list.innerHTML = '<div id="loading"><h2>Fetching trending searches…</h2><div class="dot-pulse"><span></span><span></span><span></span><span></span></div></div>';
+
+        eventSource = new EventSource(`/api/google/trends/stream?geo=${encodeURIComponent(geo)}`);
+
+        eventSource.addEventListener('trends', e => {
+            try { render(JSON.parse(e.data)); } catch (err) { console.error(err); }
+        });
+
+        eventSource.onerror = () => {
+            // SSE auto-reconnects; only show error if list is still loading
+            if (document.getElementById('loading')) {
+                list.innerHTML = '<div id="loading"><h2>Could not load trends for this region.</h2></div>';
+            }
+        };
+    }
+
+    geoSelect.addEventListener('change', () => connect(geoSelect.value));
+
+    connect(geoSelect.value);
+</script>
+</body>
+</html>
