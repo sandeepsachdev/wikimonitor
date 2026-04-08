@@ -224,6 +224,8 @@
         <a href="/trends.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Wiki Trends</a>
 <a href="/google-trends.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Google Trends</a>
         <a href="/bluesky.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Bluesky</a>
+        <a href="/crypto.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Crypto</a>
+        <a href="/news.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">News</a>
     </nav>
     <div class="controls">
         <select id="wiki-filter">
@@ -254,6 +256,18 @@
     <div class="stat">New pages: <span id="stat-new">0</span></div>
     <div class="stat">Bot edits: <span id="stat-bots">0</span></div>
     <div class="stat">Status: <span id="stat-status">Connecting…</span></div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+        <select id="type-filter">
+            <option value="">All updates</option>
+            <option value="new">New pages only</option>
+        </select>
+        <select id="speed-select">
+            <option value="3000">Slow</option>
+            <option value="1500" selected>Medium</option>
+            <option value="400">Fast</option>
+            <option value="0">Instant</option>
+        </select>
+    </div>
 </div>
 
 <div id="feed">
@@ -264,29 +278,35 @@
 </div>
 
 <script>
-    const MAX_CARDS = 200;
-    const feed = document.getElementById('feed');
-    const statusDot = document.getElementById('status-dot');
-    const pauseBtn = document.getElementById('pause-btn');
-    const clearBtn = document.getElementById('clear-btn');
-    const wikiFilter = document.getElementById('wiki-filter');
-    const hideBots = document.getElementById('hide-bots');
+    const MAX_CARDS  = 200;
+    const MAX_QUEUE  = 500;
+
+    const feed        = document.getElementById('feed');
+    const statusDot   = document.getElementById('status-dot');
+    const pauseBtn    = document.getElementById('pause-btn');
+    const clearBtn    = document.getElementById('clear-btn');
+    const wikiFilter  = document.getElementById('wiki-filter');
+    const typeFilter  = document.getElementById('type-filter');
+    const speedSelect = document.getElementById('speed-select');
+    const hideBots    = document.getElementById('hide-bots');
 
     let paused = false;
     let eventSource = null;
-    let totalEdits = 0;
-    let newPages = 0;
-    let botEdits = 0;
+    let queue = [];
+    let dripTimer = null;
+    let dripInterval = parseInt(speedSelect.value, 10);
+
+    let totalEdits = 0, newPages = 0, botEdits = 0;
     let recentTimestamps = [];
 
+    // ── Stats ────────────────────────────────────────────────────────────────
     function updateStats() {
         document.getElementById('stat-total').textContent = totalEdits.toLocaleString();
-        document.getElementById('stat-new').textContent = newPages.toLocaleString();
-        document.getElementById('stat-bots').textContent = botEdits.toLocaleString();
-
+        document.getElementById('stat-new').textContent   = newPages.toLocaleString();
+        document.getElementById('stat-bots').textContent  = botEdits.toLocaleString();
         const now = Date.now();
         recentTimestamps = recentTimestamps.filter(t => now - t < 60000);
-        document.getElementById('stat-rate').textContent = recentTimestamps.length;
+        document.getElementById('stat-rate').textContent  = recentTimestamps.length;
     }
 
     function setConnected(connected) {
@@ -294,83 +314,74 @@
         document.getElementById('stat-status').textContent = connected ? 'Live' : 'Reconnecting…';
     }
 
-    function formatDiff(size) {
-        if (size === 0) return { text: '±0', cls: 'diff-zero' };
-        const sign = size > 0 ? '+' : '';
-        const cls = size > 0 ? 'diff-positive' : 'diff-negative';
-        return { text: sign + size.toLocaleString(), cls };
-    }
-
-    function escapeHtml(str) {
+    // ── Card builder ─────────────────────────────────────────────────────────
+    function esc(str) {
         if (!str) return '';
         return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
+    function formatDiff(size) {
+        if (size === 0) return { text: '±0', cls: 'diff-zero' };
+        return { text: (size > 0 ? '+' : '') + size.toLocaleString(), cls: size > 0 ? 'diff-positive' : 'diff-negative' };
+    }
+
     function createCard(edit) {
-        const card = document.createElement('div');
+        const card    = document.createElement('div');
         card.className = 'edit-card';
-
-        const isNew = edit.type === 'new';
-        const isBot = edit.bot;
+        const isNew   = edit.type === 'new';
+        const isBot   = edit.bot;
         const isMinor = edit.minor;
-        const diff = edit.length ? (edit.length.new || 0) - (edit.length.old || 0) : 0;
-        const isLarge = Math.abs(diff) > 2000;
+        const diff    = edit.length ? (edit.length.new || 0) - (edit.length.old || 0) : 0;
 
-        if (isNew) card.classList.add('new-page');
-        else if (isBot) card.classList.add('bot-edit');
-        else if (isLarge) card.classList.add('large-edit');
-        else if (isMinor) card.classList.add('minor-edit');
+        if (isNew)              card.classList.add('new-page');
+        else if (isBot)         card.classList.add('bot-edit');
+        else if (Math.abs(diff) > 2000) card.classList.add('large-edit');
+        else if (isMinor)       card.classList.add('minor-edit');
 
         const articleUrl = edit.server_url
             ? `${edit.server_url}/wiki/${encodeURIComponent((edit.title || '').replace(/ /g, '_'))}`
             : '#';
 
         const tags = [];
-        if (isNew) tags.push('<span class="tag new">NEW</span>');
-        if (isBot) tags.push('<span class="tag bot">BOT</span>');
+        if (isNew)   tags.push('<span class="tag new">NEW</span>');
+        if (isBot)   tags.push('<span class="tag bot">BOT</span>');
         if (isMinor) tags.push('<span class="tag minor">MINOR</span>');
 
         const diffInfo = formatDiff(diff);
-        const comment = edit.comment ? escapeHtml(edit.comment).replace(/\/\*(.+?)\*\//g, '<strong>[$1]</strong>') : '';
+        const comment  = edit.comment
+            ? esc(edit.comment).replace(/\/\*(.+?)\*\//g, '<strong>[$1]</strong>')
+            : '';
 
         card.innerHTML = `
-            <div class="wiki-badge">${escapeHtml(edit.wiki || '')}</div>
+            <div class="wiki-badge">${esc(edit.wiki || '')}</div>
             <div class="edit-main">
                 <div class="edit-title">
-                    <a href="${articleUrl}" target="_blank" rel="noopener">${escapeHtml(edit.title || '')}</a>
+                    <a href="${articleUrl}" target="_blank" rel="noopener">${esc(edit.title || '')}</a>
                     ${tags.join(' ')}
                 </div>
                 <div class="edit-meta">
-                    <span>by <strong>${escapeHtml(edit.user || 'unknown')}</strong></span>
+                    <span>by <strong>${esc(edit.user || 'unknown')}</strong></span>
                     <span>${new Date((edit.timestamp || 0) * 1000).toLocaleTimeString()}</span>
                 </div>
                 ${comment ? `<div class="edit-comment">${comment}</div>` : ''}
             </div>
             <div class="diff-size ${diffInfo.cls}">${diffInfo.text}</div>
         `;
-
         return card;
     }
 
-    function addEdit(edit) {
-        if (paused) return;
-
-        totalEdits++;
-        recentTimestamps.push(Date.now());
-        if (edit.type === 'new') newPages++;
-        if (edit.bot) botEdits++;
+    // ── Drip queue ───────────────────────────────────────────────────────────
+    function drip() {
+        if (paused || queue.length === 0) return;
+        const edit = queue.shift();
 
         document.getElementById('empty-state')?.remove();
-
         const card = createCard(edit);
         feed.insertBefore(card, feed.firstChild);
 
-        // Trim old cards
         const cards = feed.querySelectorAll('.edit-card');
         if (cards.length > MAX_CARDS) {
-            for (let i = MAX_CARDS; i < cards.length; i++) {
-                cards[i].remove();
-            }
+            for (let i = MAX_CARDS; i < cards.length; i++) cards[i].remove();
             if (!feed.querySelector('.overflow-notice')) {
                 const notice = document.createElement('div');
                 notice.className = 'overflow-notice';
@@ -378,63 +389,75 @@
                 feed.appendChild(notice);
             }
         }
-
         updateStats();
     }
 
-    function connect() {
-        if (eventSource) {
-            eventSource.close();
+    function startDrip() {
+        clearInterval(dripTimer);
+        if (dripInterval === 0) {
+            // Instant mode: flush queue each tick via a fast interval
+            dripTimer = setInterval(() => { while (queue.length) drip(); }, 50);
+        } else {
+            dripTimer = setInterval(drip, dripInterval);
         }
-
-        const wiki = wikiFilter.value;
-        const url = '/stream/edits' + (wiki ? `?wiki=${encodeURIComponent(wiki)}` : '');
-
-        eventSource = new EventSource(url);
-
-        eventSource.addEventListener('edit', (e) => {
-            try {
-                const edit = JSON.parse(e.data);
-                if (hideBots.checked && edit.bot) return;
-                addEdit(edit);
-            } catch (err) {
-                console.error('Parse error', err);
-            }
-        });
-
-        eventSource.onopen = () => setConnected(true);
-        eventSource.onerror = () => {
-            setConnected(false);
-            // Browser auto-reconnects SSE
-        };
     }
 
+    // ── Enqueue incoming edit ────────────────────────────────────────────────
+    function enqueue(edit) {
+        if (hideBots.checked && edit.bot) return;
+        if (typeFilter.value === 'new' && edit.type !== 'new') return;
+
+        totalEdits++;
+        recentTimestamps.push(Date.now());
+        if (edit.type === 'new') newPages++;
+        if (edit.bot) botEdits++;
+
+        queue.push(edit);
+        if (queue.length > MAX_QUEUE) queue.shift();
+    }
+
+    // ── SSE connection ────────────────────────────────────────────────────────
+    function connect() {
+        if (eventSource) eventSource.close();
+        const wiki = wikiFilter.value;
+        const url  = '/stream/edits' + (wiki ? `?wiki=${encodeURIComponent(wiki)}` : '');
+        eventSource = new EventSource(url);
+        eventSource.addEventListener('edit', e => {
+            try { enqueue(JSON.parse(e.data)); } catch (err) { console.error('Parse error', err); }
+        });
+        eventSource.onopen  = () => setConnected(true);
+        eventSource.onerror = () => setConnected(false);
+    }
+
+    function resetFeed() {
+        queue = [];
+        feed.innerHTML = '';
+        totalEdits = 0; newPages = 0; botEdits = 0; recentTimestamps = [];
+        updateStats();
+    }
+
+    // ── Controls ──────────────────────────────────────────────────────────────
     pauseBtn.addEventListener('click', () => {
         paused = !paused;
         pauseBtn.textContent = paused ? 'Resume' : 'Pause';
-        pauseBtn.className = paused ? 'button' : 'secondary';
+        pauseBtn.className   = paused ? 'button' : 'secondary';
     });
 
-    clearBtn.addEventListener('click', () => {
-        feed.innerHTML = '';
-        totalEdits = 0; newPages = 0; botEdits = 0; recentTimestamps = [];
-        updateStats();
-    });
+    clearBtn.addEventListener('click', resetFeed);
 
-    wikiFilter.addEventListener('change', () => {
-        totalEdits = 0; newPages = 0; botEdits = 0; recentTimestamps = [];
-        feed.innerHTML = '';
-        updateStats();
-        connect();
-    });
+    wikiFilter.addEventListener('change', () => { resetFeed(); connect(); });
 
-    hideBots.addEventListener('change', () => {
-        // Just affects display of future edits
+    typeFilter.addEventListener('change', resetFeed);
+
+    speedSelect.addEventListener('change', () => {
+        dripInterval = parseInt(speedSelect.value, 10);
+        startDrip();
     });
 
     setInterval(updateStats, 5000);
 
     connect();
+    startDrip();
 </script>
 </body>
 </html>
