@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Live Prices</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+        }
+
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: #3fb950;
+            animation: pulse 2s infinite;
+        }
+        .dot.off { background: #f85149; animation: none; }
+
+        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.35} }
+
+        nav { display: flex; gap: 4px; margin-left: auto; }
+        nav a {
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+        nav a:hover { color: #e6edf3; background: #21262d; }
+        nav a.active { color: #e6edf3; border-color: #30363d; background: #21262d; }
+
+        .stats-bar {
+            position: sticky;
+            top: 57px;
+            z-index: 99;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 8px 24px;
+            display: flex;
+            gap: 24px;
+            font-size: 0.8rem;
+            color: #8b949e;
+            flex-wrap: wrap;
+        }
+        .stats-bar .stat span { color: #e6edf3; font-weight: 600; }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+            gap: 14px;
+            padding: 24px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .coin-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 10px;
+            padding: 18px 20px;
+            transition: border-color 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        .coin-card:hover { border-color: #58a6ff; }
+
+        /* flash overlay on price update */
+        .coin-card::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: 10px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.05s;
+        }
+        .coin-card.flash-up::after   { background: rgba(63,185,80,0.12); opacity: 1; }
+        .coin-card.flash-down::after { background: rgba(248,81,73,0.12);  opacity: 1; }
+
+        .coin-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 12px;
+        }
+
+        .coin-name {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .coin-icon {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.8rem;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+        }
+
+        .coin-symbol {
+            font-size: 1rem;
+            font-weight: 700;
+        }
+
+        .coin-full {
+            font-size: 0.72rem;
+            color: #8b949e;
+            margin-top: 1px;
+        }
+
+        .change-badge {
+            font-size: 0.8rem;
+            font-weight: 600;
+            padding: 3px 8px;
+            border-radius: 6px;
+        }
+        .change-badge.up   { background: #1a4a1e; color: #3fb950; }
+        .change-badge.down { background: #3d1616; color: #f85149; }
+        .change-badge.flat { background: #21262d; color: #8b949e; }
+
+        .coin-price {
+            font-size: 1.65rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 10px;
+            transition: color 0.3s;
+        }
+        .coin-price.up   { color: #3fb950; }
+        .coin-price.down { color: #f85149; }
+
+        .coin-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 6px 12px;
+            font-size: 0.75rem;
+            color: #8b949e;
+        }
+
+        .coin-details .val { color: #e6edf3; font-weight: 500; }
+
+        .range-bar {
+            margin-top: 12px;
+        }
+        .range-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.7rem;
+            color: #8b949e;
+            margin-bottom: 4px;
+        }
+        .range-track {
+            height: 4px;
+            background: #21262d;
+            border-radius: 2px;
+            position: relative;
+        }
+        .range-fill {
+            height: 100%;
+            border-radius: 2px;
+            background: linear-gradient(90deg, #f85149, #3fb950);
+            position: absolute;
+            left: 0;
+        }
+        .range-dot {
+            width: 8px; height: 8px;
+            background: #e6edf3;
+            border-radius: 50%;
+            position: absolute;
+            top: -2px;
+            transform: translateX(-50%);
+        }
+
+        .coin-updated {
+            font-size: 0.68rem;
+            color: #484f58;
+            margin-top: 10px;
+            text-align: right;
+        }
+
+        #connecting {
+            text-align: center;
+            padding: 80px 20px;
+            color: #8b949e;
+        }
+        #connecting h2 { font-size: 1.1rem; margin-bottom: 8px; }
+
+        @media (max-width: 600px) {
+            .grid { padding: 12px; gap: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>
+        <div class="dot" id="dot"></div>
+        Crypto Live Prices
+    </h1>
+    <nav>
+        <a href="/">News</a>
+        <a href="/google-trends.html">Google Trends</a>
+        <a href="/wikipedia.html">Live Feed</a>
+        <a href="/bluesky.html">Bluesky</a>
+        <a href="/crypto.html" class="active">Crypto</a>
+        <a href="/trends.html">Wiki Trends</a>
+    </nav>
+</header>
+
+<div class="stats-bar">
+    <div class="stat">Coins tracked: <span id="s-coins">0</span></div>
+    <div class="stat">Updates/sec: <span id="s-rate">0</span></div>
+    <div class="stat">Gainers: <span id="s-up">0</span></div>
+    <div class="stat">Losers: <span id="s-down">0</span></div>
+    <div class="stat">Status: <span id="s-status">Connecting…</span></div>
+</div>
+
+<div class="grid" id="grid">
+    <div id="connecting">
+        <h2>Connecting to Binance stream…</h2>
+        <p>Live prices will appear here</p>
+    </div>
+</div>
+
+<script>
+    const COIN_NAMES = {
+        BTCUSDT:   ['BTC', 'Bitcoin'],
+        ETHUSDT:   ['ETH', 'Ethereum'],
+        BNBUSDT:   ['BNB', 'BNB'],
+        SOLUSDT:   ['SOL', 'Solana'],
+        XRPUSDT:   ['XRP', 'XRP'],
+        DOGEUSDT:  ['DOGE', 'Dogecoin'],
+        ADAUSDT:   ['ADA', 'Cardano'],
+        AVAXUSDT:  ['AVAX', 'Avalanche'],
+        LINKUSDT:  ['LINK', 'Chainlink'],
+        DOTUSDT:   ['DOT', 'Polkadot'],
+        LTCUSDT:   ['LTC', 'Litecoin'],
+        UNIUSDT:   ['UNI', 'Uniswap'],
+        ATOMUSDT:  ['ATOM', 'Cosmos'],
+        NEARUSDT:  ['NEAR', 'NEAR Protocol'],
+        MATICUSDT: ['MATIC', 'Polygon'],
+    };
+
+    const COIN_COLORS = {
+        BTCUSDT:   '#f7931a', ETHUSDT:   '#627eea', BNBUSDT:   '#f0b90b',
+        SOLUSDT:   '#9945ff', XRPUSDT:   '#00aae4', DOGEUSDT:  '#c2a633',
+        ADAUSDT:   '#0033ad', AVAXUSDT:  '#e84142', LINKUSDT:  '#2a5ada',
+        DOTUSDT:   '#e6007a', LTCUSDT:   '#bfbbbb', UNIUSDT:   '#ff007a',
+        ATOMUSDT:  '#2e3148', NEARUSDT:  '#00c08b', MATICUSDT: '#8247e5',
+    };
+
+    const coins   = {};   // symbol → latest tick data
+    const prevPrice = {}; // symbol → previous price for flash direction
+    let recentTs  = [];
+    let eventSource = null;
+
+    const grid   = document.getElementById('grid');
+    const dotEl  = document.getElementById('dot');
+
+    function fmt(n, decimals) {
+        if (n === undefined || n === null) return '—';
+        if (n >= 1000) return n.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+        if (n >= 1)    return n.toLocaleString('en-US', { minimumFractionDigits: 3, maximumFractionDigits: 4 });
+        return n.toLocaleString('en-US', { minimumFractionDigits: 4, maximumFractionDigits: 6 });
+    }
+
+    function fmtVol(v) {
+        if (v >= 1e9) return (v / 1e9).toFixed(2) + 'B';
+        if (v >= 1e6) return (v / 1e6).toFixed(2) + 'M';
+        if (v >= 1e3) return (v / 1e3).toFixed(2) + 'K';
+        return v.toFixed(2);
+    }
+
+    function changeClass(pct) {
+        if (pct > 0.01)  return 'up';
+        if (pct < -0.01) return 'down';
+        return 'flat';
+    }
+
+    function rangePosition(price, low, high) {
+        if (high <= low) return 50;
+        return Math.min(100, Math.max(0, ((price - low) / (high - low)) * 100));
+    }
+
+    function renderCard(symbol, tick) {
+        const [short, full] = COIN_NAMES[symbol] || [symbol, symbol];
+        const color = COIN_COLORS[symbol] || '#58a6ff';
+        const pct   = tick.changePercent;
+        const cls   = changeClass(pct);
+        const pos   = rangePosition(tick.price, tick.low, tick.high);
+        const now   = new Date().toLocaleTimeString();
+
+        let card = document.getElementById('card-' + symbol);
+        const isNew = !card;
+
+        if (isNew) {
+            card = document.createElement('div');
+            card.id = 'card-' + symbol;
+            card.className = 'coin-card';
+            grid.appendChild(card);
+        }
+
+        card.innerHTML = `
+            <div class="coin-header">
+                <div class="coin-name">
+                    <div class="coin-icon" style="background:${color}">${short.slice(0,3)}</div>
+                    <div>
+                        <div class="coin-symbol">${short}</div>
+                        <div class="coin-full">${full}</div>
+                    </div>
+                </div>
+                <div class="change-badge ${cls}">${pct >= 0 ? '+' : ''}${pct.toFixed(2)}%</div>
+            </div>
+            <div class="coin-price ${cls}">$${fmt(tick.price)}</div>
+            <div class="coin-details">
+                <div>Open <span class="val">$${fmt(tick.open)}</span></div>
+                <div>Volume <span class="val">${fmtVol(tick.volume)}</span></div>
+                <div>High <span class="val" style="color:#3fb950">$${fmt(tick.high)}</span></div>
+                <div>Low <span class="val" style="color:#f85149">$${fmt(tick.low)}</span></div>
+            </div>
+            <div class="range-bar">
+                <div class="range-label"><span>$${fmt(tick.low)}</span><span>24h range</span><span>$${fmt(tick.high)}</span></div>
+                <div class="range-track">
+                    <div class="range-fill" style="width:${pos}%"></div>
+                    <div class="range-dot" style="left:${pos}%"></div>
+                </div>
+            </div>
+            <div class="coin-updated">Updated ${now}</div>
+        `;
+
+        return { card, isNew };
+    }
+
+    function flash(card, direction) {
+        card.classList.remove('flash-up', 'flash-down');
+        void card.offsetWidth; // reflow to restart animation
+        card.classList.add(direction === 'up' ? 'flash-up' : 'flash-down');
+        setTimeout(() => card.classList.remove('flash-up', 'flash-down'), 400);
+    }
+
+    function onTick(tick) {
+        document.getElementById('connecting')?.remove();
+
+        const symbol = tick.symbol;
+        tick.changePercent = tick.open === 0 ? 0 : (tick.price - tick.open) / tick.open * 100;
+
+        const prev = prevPrice[symbol];
+        const direction = prev === undefined ? null : tick.price >= prev ? 'up' : 'down';
+        prevPrice[symbol] = tick.price;
+        coins[symbol] = tick;
+
+        recentTs.push(Date.now());
+
+        const { card } = renderCard(symbol, tick);
+        if (direction && !isNaN(prev) && Math.abs(tick.price - prev) > 0) {
+            flash(card, direction);
+        }
+
+        updateStats();
+    }
+
+    function updateStats() {
+        const now = Date.now();
+        recentTs = recentTs.filter(t => now - t < 5000);
+        document.getElementById('s-coins').textContent = Object.keys(coins).length;
+        document.getElementById('s-rate').textContent  = (recentTs.length / 5).toFixed(1);
+
+        const ticks  = Object.values(coins);
+        document.getElementById('s-up').textContent   = ticks.filter(t => t.changePercent > 0).length;
+        document.getElementById('s-down').textContent = ticks.filter(t => t.changePercent < 0).length;
+    }
+
+    function connect() {
+        if (eventSource) eventSource.close();
+        eventSource = new EventSource('/stream/crypto');
+
+        eventSource.addEventListener('tick', e => {
+            try { onTick(JSON.parse(e.data)); } catch (err) { console.error(err); }
+        });
+
+        eventSource.onopen  = () => {
+            dotEl.className = 'dot';
+            document.getElementById('s-status').textContent = 'Live';
+        };
+        eventSource.onerror = () => {
+            dotEl.className = 'dot off';
+            document.getElementById('s-status').textContent = 'Reconnecting…';
+        };
+    }
+
+    setInterval(updateStats, 2000);
+    connect();
+</script>
+</body>
+</html>

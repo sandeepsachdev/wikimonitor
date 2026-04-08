@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wikipedia Live Edits</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+        }
+
+        header {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #3fb950;
+            animation: pulse 2s infinite;
+        }
+
+        .dot.disconnected { background: #f85149; animation: none; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .controls {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            margin-left: auto;
+            flex-wrap: wrap;
+        }
+
+        select, button, input {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #e6edf3;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+
+        select:focus, input:focus { outline: 1px solid #58a6ff; border-color: #58a6ff; }
+
+        button {
+            background: #238636;
+            border-color: #2ea043;
+            font-weight: 500;
+            transition: background 0.15s;
+        }
+
+        button:hover { background: #2ea043; }
+        button.danger { background: #b62324; border-color: #f85149; }
+        button.danger:hover { background: #da3633; }
+        button.secondary { background: #21262d; border-color: #30363d; }
+        button.secondary:hover { background: #30363d; }
+
+        .stats-bar {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 8px 24px;
+            display: flex;
+            gap: 24px;
+            font-size: 0.8rem;
+            color: #8b949e;
+        }
+
+        .stat span { color: #e6edf3; font-weight: 600; }
+
+        #feed {
+            max-width: 1100px;
+            margin: 24px auto;
+            padding: 0 16px;
+        }
+
+        .edit-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 14px 18px;
+            margin-bottom: 8px;
+            display: grid;
+            grid-template-columns: auto 1fr auto;
+            gap: 12px;
+            align-items: start;
+            animation: slideIn 0.25s ease-out;
+            transition: border-color 0.15s;
+        }
+
+        .edit-card:hover { border-color: #58a6ff; }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(-8px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .edit-card.new-page { border-left: 3px solid #3fb950; }
+        .edit-card.bot-edit { border-left: 3px solid #8b949e; opacity: 0.7; }
+        .edit-card.minor-edit { border-left: 3px solid #58a6ff; }
+        .edit-card.large-edit { border-left: 3px solid #f0883e; }
+
+        .wiki-badge {
+            background: #21262d;
+            border: 1px solid #30363d;
+            border-radius: 4px;
+            padding: 2px 7px;
+            font-size: 0.75rem;
+            color: #8b949e;
+            white-space: nowrap;
+            font-family: monospace;
+        }
+
+        .edit-main { overflow: hidden; }
+
+        .edit-title {
+            font-weight: 600;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .edit-title a {
+            color: #58a6ff;
+            text-decoration: none;
+        }
+
+        .edit-title a:hover { text-decoration: underline; }
+
+        .edit-meta {
+            font-size: 0.8rem;
+            color: #8b949e;
+            margin-top: 4px;
+            display: flex;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .edit-comment {
+            font-size: 0.8rem;
+            color: #8b949e;
+            margin-top: 4px;
+            font-style: italic;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .diff-size {
+            font-size: 0.85rem;
+            font-weight: 600;
+            white-space: nowrap;
+            padding-top: 2px;
+        }
+
+        .diff-positive { color: #3fb950; }
+        .diff-negative { color: #f85149; }
+        .diff-zero { color: #8b949e; }
+
+        .tag {
+            display: inline-block;
+            font-size: 0.7rem;
+            padding: 1px 5px;
+            border-radius: 3px;
+            font-weight: 500;
+        }
+
+        .tag.bot { background: #30363d; color: #8b949e; }
+        .tag.new { background: #1a4a1e; color: #3fb950; }
+        .tag.minor { background: #1c2d47; color: #58a6ff; }
+
+        #empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #8b949e;
+        }
+
+        #empty-state h2 { font-size: 1.1rem; margin-bottom: 8px; }
+
+        .overflow-notice {
+            text-align: center;
+            padding: 10px;
+            font-size: 0.8rem;
+            color: #8b949e;
+            border-top: 1px solid #30363d;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>
+        <div class="dot" id="status-dot"></div>
+        Wikipedia Live Edits
+    </h1>
+    <nav style="display:flex;gap:4px;margin-right:12px;">
+        <a href="/" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">News</a>
+<a href="/google-trends.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Google Trends</a>
+        <a href="/wikipedia.html" style="color:#e6edf3;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid #30363d;background:#21262d;">Live Feed</a>
+        <a href="/bluesky.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Bluesky</a>
+        <a href="/crypto.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Crypto</a>
+        <a href="/trends.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Wiki Trends</a>
+    </nav>
+    <div class="controls">
+        <select id="wiki-filter">
+            <option value="">All wikis</option>
+            <option value="enwiki" selected>English (enwiki)</option>
+            <option value="dewiki">German (dewiki)</option>
+            <option value="frwiki">French (frwiki)</option>
+            <option value="eswiki">Spanish (eswiki)</option>
+            <option value="jawiki">Japanese (jawiki)</option>
+            <option value="ruwiki">Russian (ruwiki)</option>
+            <option value="zhwiki">Chinese (zhwiki)</option>
+            <option value="itwiki">Italian (itwiki)</option>
+            <option value="ptwiki">Portuguese (ptwiki)</option>
+            <option value="commonswiki">Wikimedia Commons</option>
+            <option value="wikidatawiki">Wikidata</option>
+        </select>
+        <label style="font-size:0.85rem; display:flex; align-items:center; gap:6px; cursor:pointer;">
+            <input type="checkbox" id="hide-bots" checked style="padding:0; width:14px; height:14px;"> Hide bots
+        </label>
+        <button class="secondary" id="pause-btn">Pause</button>
+        <button class="danger" id="clear-btn">Clear</button>
+    </div>
+</header>
+
+<div class="stats-bar">
+    <div class="stat">Total edits: <span id="stat-total">0</span></div>
+    <div class="stat">Edits/min: <span id="stat-rate">0</span></div>
+    <div class="stat">New pages: <span id="stat-new">0</span></div>
+    <div class="stat">Bot edits: <span id="stat-bots">0</span></div>
+    <div class="stat">Status: <span id="stat-status">Connecting…</span></div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
+        <select id="type-filter">
+            <option value="">All updates</option>
+            <option value="new">New pages only</option>
+        </select>
+        <select id="speed-select">
+            <option value="3000">Slow</option>
+            <option value="1500" selected>Medium</option>
+            <option value="400">Fast</option>
+            <option value="0">Instant</option>
+        </select>
+    </div>
+</div>
+
+<div id="feed">
+    <div id="empty-state">
+        <h2>Connecting to Wikipedia stream…</h2>
+        <p>Real-time edits will appear here</p>
+    </div>
+</div>
+
+<script>
+    const MAX_CARDS  = 200;
+    const MAX_QUEUE  = 500;
+
+    const feed        = document.getElementById('feed');
+    const statusDot   = document.getElementById('status-dot');
+    const pauseBtn    = document.getElementById('pause-btn');
+    const clearBtn    = document.getElementById('clear-btn');
+    const wikiFilter  = document.getElementById('wiki-filter');
+    const typeFilter  = document.getElementById('type-filter');
+    const speedSelect = document.getElementById('speed-select');
+    const hideBots    = document.getElementById('hide-bots');
+
+    let paused = false;
+    let eventSource = null;
+    let queue = [];
+    let dripTimer = null;
+    let dripInterval = parseInt(speedSelect.value, 10);
+
+    let totalEdits = 0, newPages = 0, botEdits = 0;
+    let recentTimestamps = [];
+
+    // ── Stats ────────────────────────────────────────────────────────────────
+    function updateStats() {
+        document.getElementById('stat-total').textContent = totalEdits.toLocaleString();
+        document.getElementById('stat-new').textContent   = newPages.toLocaleString();
+        document.getElementById('stat-bots').textContent  = botEdits.toLocaleString();
+        const now = Date.now();
+        recentTimestamps = recentTimestamps.filter(t => now - t < 60000);
+        document.getElementById('stat-rate').textContent  = recentTimestamps.length;
+    }
+
+    function setConnected(connected) {
+        statusDot.className = 'dot' + (connected ? '' : ' disconnected');
+        document.getElementById('stat-status').textContent = connected ? 'Live' : 'Reconnecting…';
+    }
+
+    // ── Card builder ─────────────────────────────────────────────────────────
+    function esc(str) {
+        if (!str) return '';
+        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    function formatDiff(size) {
+        if (size === 0) return { text: '±0', cls: 'diff-zero' };
+        return { text: (size > 0 ? '+' : '') + size.toLocaleString(), cls: size > 0 ? 'diff-positive' : 'diff-negative' };
+    }
+
+    function createCard(edit) {
+        const card    = document.createElement('div');
+        card.className = 'edit-card';
+        const isNew   = edit.type === 'new';
+        const isBot   = edit.bot;
+        const isMinor = edit.minor;
+        const diff    = edit.length ? (edit.length.new || 0) - (edit.length.old || 0) : 0;
+
+        if (isNew)              card.classList.add('new-page');
+        else if (isBot)         card.classList.add('bot-edit');
+        else if (Math.abs(diff) > 2000) card.classList.add('large-edit');
+        else if (isMinor)       card.classList.add('minor-edit');
+
+        const articleUrl = edit.server_url
+            ? `${edit.server_url}/wiki/${encodeURIComponent((edit.title || '').replace(/ /g, '_'))}`
+            : '#';
+
+        const tags = [];
+        if (isNew)   tags.push('<span class="tag new">NEW</span>');
+        if (isBot)   tags.push('<span class="tag bot">BOT</span>');
+        if (isMinor) tags.push('<span class="tag minor">MINOR</span>');
+
+        const diffInfo = formatDiff(diff);
+        const comment  = edit.comment
+            ? esc(edit.comment).replace(/\/\*(.+?)\*\//g, '<strong>[$1]</strong>')
+            : '';
+
+        card.innerHTML = `
+            <div class="wiki-badge">${esc(edit.wiki || '')}</div>
+            <div class="edit-main">
+                <div class="edit-title">
+                    <a href="${articleUrl}" target="_blank" rel="noopener">${esc(edit.title || '')}</a>
+                    ${tags.join(' ')}
+                </div>
+                <div class="edit-meta">
+                    <span>by <strong>${esc(edit.user || 'unknown')}</strong></span>
+                    <span>${new Date((edit.timestamp || 0) * 1000).toLocaleTimeString()}</span>
+                </div>
+                ${comment ? `<div class="edit-comment">${comment}</div>` : ''}
+            </div>
+            <div class="diff-size ${diffInfo.cls}">${diffInfo.text}</div>
+        `;
+        return card;
+    }
+
+    // ── Drip queue ───────────────────────────────────────────────────────────
+    function drip() {
+        if (paused || queue.length === 0) return;
+        const edit = queue.shift();
+
+        document.getElementById('empty-state')?.remove();
+        const card = createCard(edit);
+        feed.insertBefore(card, feed.firstChild);
+
+        const cards = feed.querySelectorAll('.edit-card');
+        if (cards.length > MAX_CARDS) {
+            for (let i = MAX_CARDS; i < cards.length; i++) cards[i].remove();
+            if (!feed.querySelector('.overflow-notice')) {
+                const notice = document.createElement('div');
+                notice.className = 'overflow-notice';
+                notice.textContent = `Showing latest ${MAX_CARDS} edits`;
+                feed.appendChild(notice);
+            }
+        }
+        updateStats();
+    }
+
+    function startDrip() {
+        clearInterval(dripTimer);
+        if (dripInterval === 0) {
+            // Instant mode: flush queue each tick via a fast interval
+            dripTimer = setInterval(() => { while (queue.length) drip(); }, 50);
+        } else {
+            dripTimer = setInterval(drip, dripInterval);
+        }
+    }
+
+    // ── Enqueue incoming edit ────────────────────────────────────────────────
+    function enqueue(edit) {
+        if (hideBots.checked && edit.bot) return;
+        if (typeFilter.value === 'new' && edit.type !== 'new') return;
+
+        totalEdits++;
+        recentTimestamps.push(Date.now());
+        if (edit.type === 'new') newPages++;
+        if (edit.bot) botEdits++;
+
+        queue.push(edit);
+        if (queue.length > MAX_QUEUE) queue.shift();
+    }
+
+    // ── SSE connection ────────────────────────────────────────────────────────
+    function connect() {
+        if (eventSource) eventSource.close();
+        const wiki = wikiFilter.value;
+        const url  = '/stream/edits' + (wiki ? `?wiki=${encodeURIComponent(wiki)}` : '');
+        eventSource = new EventSource(url);
+        eventSource.addEventListener('edit', e => {
+            try { enqueue(JSON.parse(e.data)); } catch (err) { console.error('Parse error', err); }
+        });
+        eventSource.onopen  = () => setConnected(true);
+        eventSource.onerror = () => setConnected(false);
+    }
+
+    function resetFeed() {
+        queue = [];
+        feed.innerHTML = '';
+        totalEdits = 0; newPages = 0; botEdits = 0; recentTimestamps = [];
+        updateStats();
+    }
+
+    // ── Controls ──────────────────────────────────────────────────────────────
+    pauseBtn.addEventListener('click', () => {
+        paused = !paused;
+        pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+        pauseBtn.className   = paused ? 'button' : 'secondary';
+    });
+
+    clearBtn.addEventListener('click', resetFeed);
+
+    wikiFilter.addEventListener('change', () => { resetFeed(); connect(); });
+
+    typeFilter.addEventListener('change', resetFeed);
+
+    speedSelect.addEventListener('change', () => {
+        dripInterval = parseInt(speedSelect.value, 10);
+        startDrip();
+    });
+
+    setInterval(updateStats, 5000);
+
+    connect();
+    startDrip();
+</script>
+</body>
+</html>
