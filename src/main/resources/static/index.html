@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Wikipedia Live Edits</title>
+    <title>Live News Feed</title>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -14,10 +14,14 @@
             min-height: 100vh;
         }
 
+        /* ── Header ── */
         header {
+            position: sticky;
+            top: 0;
+            z-index: 200;
             background: #161b22;
             border-bottom: 1px solid #30363d;
-            padding: 16px 24px;
+            padding: 14px 24px;
             display: flex;
             align-items: center;
             gap: 16px;
@@ -25,190 +29,286 @@
         }
 
         header h1 {
-            font-size: 1.25rem;
-            font-weight: 600;
+            font-size: 1.2rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            letter-spacing: -0.3px;
+        }
+
+        .dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: #3fb950;
+            animation: pulse 2s infinite;
+            flex-shrink: 0;
+        }
+        .dot.off { background: #f85149; animation: none; }
+        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
+
+        nav { display: flex; gap: 4px; margin-left: auto; }
+        nav a {
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 6px 12px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+            white-space: nowrap;
+        }
+        nav a:hover { color: #e6edf3; background: #21262d; }
+        nav a.active { color: #e6edf3; border-color: #30363d; background: #21262d; }
+
+        /* ── Ticker ── */
+        .ticker-wrap {
+            position: sticky;
+            top: 57px;
+            z-index: 199;
+            background: #c0392b;
+            overflow: hidden;
+            height: 34px;
+            display: flex;
+            align-items: center;
+            border-bottom: 2px solid #922b21;
+        }
+
+        .ticker-label {
+            background: #922b21;
+            color: #fff;
+            font-size: 0.72rem;
+            font-weight: 800;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            padding: 0 14px;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            flex-shrink: 0;
+            border-right: 2px solid #7b241c;
+            white-space: nowrap;
+        }
+
+        .ticker-scroll {
+            flex: 1;
+            overflow: hidden;
+            height: 100%;
+            position: relative;
+        }
+
+        .ticker-inner {
+            display: inline-flex;
+            align-items: center;
+            height: 100%;
+            white-space: nowrap;
+            animation: ticker-move var(--ticker-duration, 80s) linear infinite;
+            will-change: transform;
+        }
+
+        .ticker-inner:hover { animation-play-state: paused; }
+
+        @keyframes ticker-move {
+            from { transform: translateX(0); }
+            to   { transform: translateX(-50%); }
+        }
+
+        .ticker-item {
+            display: inline-flex;
+            align-items: center;
+            gap: 0;
+            font-size: 0.82rem;
+            color: #fff;
+            padding: 0 28px;
+            border-right: 1px solid rgba(255,255,255,0.2);
+        }
+
+        .ticker-source {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            margin-right: 8px;
+            opacity: 0.8;
+        }
+
+        /* ── Filter bar ── */
+        .filter-bar {
+            position: sticky;
+            top: 91px;
+            z-index: 198;
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .cat-btn {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            border-radius: 20px;
+            padding: 5px 14px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .cat-btn:hover { color: #e6edf3; background: #30363d; }
+        .cat-btn.active { color: #fff; border-color: transparent; }
+        .cat-btn[data-cat="All"].active     { background: #1f6feb; }
+        .cat-btn[data-cat="World"].active   { background: #1a4a1e; color: #3fb950; border-color: #2ea043; }
+        .cat-btn[data-cat="Tech"].active    { background: #1c2d47; color: #79c0ff; border-color: #388bfd; }
+        .cat-btn[data-cat="Science"].active { background: #2e1d5e; color: #bc8cff; border-color: #8957e5; }
+        .cat-btn[data-cat="Politics"].active{ background: #3d2e00; color: #e3b341; border-color: #bb8009; }
+        .cat-btn[data-cat="Business"].active{ background: #2a1d0e; color: #ffa657; border-color: #d1792a; }
+        .cat-btn[data-cat="Sports"].active  { background: #3d1616; color: #f85149; border-color: #da3633; }
+
+        .search-input {
+            margin-left: auto;
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #e6edf3;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 0.8rem;
+            width: 200px;
+        }
+        .search-input:focus { outline: 1px solid #58a6ff; border-color: #58a6ff; }
+
+        /* ── Stats strip ── */
+        .stats-strip {
+            position: sticky;
+            top: 141px;
+            z-index: 197;
+            background: #0d1117;
+            border-bottom: 1px solid #21262d;
+            padding: 6px 24px;
+            display: flex;
+            gap: 20px;
+            font-size: 0.75rem;
+            color: #484f58;
+        }
+        .stats-strip span { color: #8b949e; font-weight: 600; }
+
+        /* ── Card grid ── */
+        .card-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+            gap: 12px;
+            padding: 20px 24px;
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+
+        .news-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 14px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            animation: fadeUp 0.3s ease-out both;
+            transition: border-color 0.15s;
+            cursor: pointer;
+        }
+        .news-card:hover { border-color: #58a6ff; }
+        .news-card[data-cat="World"]    { border-left: 3px solid #2ea043; }
+        .news-card[data-cat="Tech"]     { border-left: 3px solid #388bfd; }
+        .news-card[data-cat="Science"]  { border-left: 3px solid #8957e5; }
+        .news-card[data-cat="Politics"] { border-left: 3px solid #bb8009; }
+        .news-card[data-cat="Business"] { border-left: 3px solid #d1792a; }
+        .news-card[data-cat="Sports"]   { border-left: 3px solid #da3633; }
+
+        @keyframes fadeUp {
+            from { opacity: 0; transform: translateY(6px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        .card-meta {
             display: flex;
             align-items: center;
             gap: 8px;
         }
 
-        .dot {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            background: #3fb950;
-            animation: pulse 2s infinite;
-        }
-
-        .dot.disconnected { background: #f85149; animation: none; }
-
-        @keyframes pulse {
-            0%, 100% { opacity: 1; }
-            50% { opacity: 0.4; }
-        }
-
-        .controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            margin-left: auto;
-            flex-wrap: wrap;
-        }
-
-        select, button, input {
-            background: #21262d;
-            border: 1px solid #30363d;
-            color: #e6edf3;
-            border-radius: 6px;
-            padding: 6px 12px;
-            font-size: 0.875rem;
-            cursor: pointer;
-        }
-
-        select:focus, input:focus { outline: 1px solid #58a6ff; border-color: #58a6ff; }
-
-        button {
-            background: #238636;
-            border-color: #2ea043;
-            font-weight: 500;
-            transition: background 0.15s;
-        }
-
-        button:hover { background: #2ea043; }
-        button.danger { background: #b62324; border-color: #f85149; }
-        button.danger:hover { background: #da3633; }
-        button.secondary { background: #21262d; border-color: #30363d; }
-        button.secondary:hover { background: #30363d; }
-
-        .stats-bar {
-            background: #161b22;
-            border-bottom: 1px solid #30363d;
-            padding: 8px 24px;
-            display: flex;
-            gap: 24px;
-            font-size: 0.8rem;
-            color: #8b949e;
-        }
-
-        .stat span { color: #e6edf3; font-weight: 600; }
-
-        #feed {
-            max-width: 1100px;
-            margin: 24px auto;
-            padding: 0 16px;
-        }
-
-        .edit-card {
-            background: #161b22;
-            border: 1px solid #30363d;
-            border-radius: 8px;
-            padding: 14px 18px;
-            margin-bottom: 8px;
-            display: grid;
-            grid-template-columns: auto 1fr auto;
-            gap: 12px;
-            align-items: start;
-            animation: slideIn 0.25s ease-out;
-            transition: border-color 0.15s;
-        }
-
-        .edit-card:hover { border-color: #58a6ff; }
-
-        @keyframes slideIn {
-            from { opacity: 0; transform: translateY(-8px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        .edit-card.new-page { border-left: 3px solid #3fb950; }
-        .edit-card.bot-edit { border-left: 3px solid #8b949e; opacity: 0.7; }
-        .edit-card.minor-edit { border-left: 3px solid #58a6ff; }
-        .edit-card.large-edit { border-left: 3px solid #f0883e; }
-
-        .wiki-badge {
-            background: #21262d;
-            border: 1px solid #30363d;
-            border-radius: 4px;
+        .source-badge {
+            font-size: 0.68rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
             padding: 2px 7px;
-            font-size: 0.75rem;
-            color: #8b949e;
+            border-radius: 4px;
+        }
+        .badge-World    { background: #1a4a1e; color: #3fb950; }
+        .badge-Tech     { background: #1c2d47; color: #79c0ff; }
+        .badge-Science  { background: #2e1d5e; color: #bc8cff; }
+        .badge-Politics { background: #3d2e00; color: #e3b341; }
+        .badge-Business { background: #2a1d0e; color: #ffa657; }
+        .badge-Sports   { background: #3d1616; color: #f85149; }
+
+        .card-time {
+            font-size: 0.72rem;
+            color: #484f58;
+            margin-left: auto;
             white-space: nowrap;
-            font-family: monospace;
         }
 
-        .edit-main { overflow: hidden; }
-
-        .edit-title {
+        .card-title {
+            font-size: 0.92rem;
             font-weight: 600;
-            font-size: 0.95rem;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+            line-height: 1.4;
         }
-
-        .edit-title a {
-            color: #58a6ff;
+        .card-title a {
+            color: #e6edf3;
             text-decoration: none;
         }
+        .card-title a:hover { color: #58a6ff; }
 
-        .edit-title a:hover { text-decoration: underline; }
-
-        .edit-meta {
-            font-size: 0.8rem;
+        .card-desc {
+            font-size: 0.78rem;
             color: #8b949e;
-            margin-top: 4px;
-            display: flex;
-            gap: 12px;
-            flex-wrap: wrap;
+            line-height: 1.45;
         }
 
-        .edit-comment {
-            font-size: 0.8rem;
-            color: #8b949e;
-            margin-top: 4px;
-            font-style: italic;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        .card-source-name {
+            font-size: 0.72rem;
+            color: #484f58;
         }
-
-        .diff-size {
-            font-size: 0.85rem;
-            font-weight: 600;
-            white-space: nowrap;
-            padding-top: 2px;
-        }
-
-        .diff-positive { color: #3fb950; }
-        .diff-negative { color: #f85149; }
-        .diff-zero { color: #8b949e; }
-
-        .tag {
-            display: inline-block;
-            font-size: 0.7rem;
-            padding: 1px 5px;
-            border-radius: 3px;
-            font-weight: 500;
-        }
-
-        .tag.bot { background: #30363d; color: #8b949e; }
-        .tag.new { background: #1a4a1e; color: #3fb950; }
-        .tag.minor { background: #1c2d47; color: #58a6ff; }
 
         #empty-state {
+            grid-column: 1/-1;
             text-align: center;
-            padding: 80px 20px;
-            color: #8b949e;
+            padding: 80px;
+            color: #484f58;
+        }
+        #empty-state h2 { font-size: 1rem; margin-bottom: 8px; color: #8b949e; }
+
+        .new-badge {
+            display: inline-block;
+            background: #c0392b;
+            color: #fff;
+            font-size: 0.6rem;
+            font-weight: 700;
+            padding: 1px 5px;
+            border-radius: 3px;
+            text-transform: uppercase;
+            letter-spacing: 0.06em;
+            vertical-align: middle;
+            margin-left: 6px;
+            animation: fadeBadge 8s forwards;
+        }
+        @keyframes fadeBadge {
+            0%,70% { opacity: 1; }
+            100%   { opacity: 0; }
         }
 
-        #empty-state h2 { font-size: 1.1rem; margin-bottom: 8px; }
-
-        .overflow-notice {
-            text-align: center;
-            padding: 10px;
-            font-size: 0.8rem;
-            color: #8b949e;
-            border-top: 1px solid #30363d;
-            margin-top: 8px;
+        @media (max-width: 640px) {
+            .card-grid { grid-template-columns: 1fr; padding: 12px; }
+            .filter-bar { gap: 6px; }
+            .search-input { width: 100%; margin-left: 0; }
         }
     </style>
 </head>
@@ -216,248 +316,265 @@
 
 <header>
     <h1>
-        <div class="dot" id="status-dot"></div>
-        Wikipedia Live Edits
+        <div class="dot" id="dot"></div>
+        Live News
     </h1>
-    <nav style="display:flex;gap:4px;margin-right:12px;">
-        <a href="/" style="color:#e6edf3;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid #30363d;background:#21262d;">Live Feed</a>
-        <a href="/news.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">News</a>
-<a href="/google-trends.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Google Trends</a>
-        <a href="/bluesky.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Bluesky</a>
-        <a href="/crypto.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Crypto</a>
-        <a href="/trends.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Wiki Trends</a>
+    <nav>
+        <a href="/" class="active">News</a>
+        <a href="/google-trends.html">Google Trends</a>
+        <a href="/wikipedia.html">Live Feed</a>
+        <a href="/bluesky.html">Bluesky</a>
+        <a href="/crypto.html">Crypto</a>
+        <a href="/trends.html">Wiki Trends</a>
     </nav>
-    <div class="controls">
-        <select id="wiki-filter">
-            <option value="">All wikis</option>
-            <option value="enwiki" selected>English (enwiki)</option>
-            <option value="dewiki">German (dewiki)</option>
-            <option value="frwiki">French (frwiki)</option>
-            <option value="eswiki">Spanish (eswiki)</option>
-            <option value="jawiki">Japanese (jawiki)</option>
-            <option value="ruwiki">Russian (ruwiki)</option>
-            <option value="zhwiki">Chinese (zhwiki)</option>
-            <option value="itwiki">Italian (itwiki)</option>
-            <option value="ptwiki">Portuguese (ptwiki)</option>
-            <option value="commonswiki">Wikimedia Commons</option>
-            <option value="wikidatawiki">Wikidata</option>
-        </select>
-        <label style="font-size:0.85rem; display:flex; align-items:center; gap:6px; cursor:pointer;">
-            <input type="checkbox" id="hide-bots" checked style="padding:0; width:14px; height:14px;"> Hide bots
-        </label>
-        <button class="secondary" id="pause-btn">Pause</button>
-        <button class="danger" id="clear-btn">Clear</button>
-    </div>
 </header>
 
-<div class="stats-bar">
-    <div class="stat">Total edits: <span id="stat-total">0</span></div>
-    <div class="stat">Edits/min: <span id="stat-rate">0</span></div>
-    <div class="stat">New pages: <span id="stat-new">0</span></div>
-    <div class="stat">Bot edits: <span id="stat-bots">0</span></div>
-    <div class="stat">Status: <span id="stat-status">Connecting…</span></div>
-    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
-        <select id="type-filter">
-            <option value="">All updates</option>
-            <option value="new">New pages only</option>
-        </select>
-        <select id="speed-select">
-            <option value="3000">Slow</option>
-            <option value="1500" selected>Medium</option>
-            <option value="400">Fast</option>
-            <option value="0">Instant</option>
-        </select>
+<div class="ticker-wrap">
+    <div class="ticker-label">Breaking</div>
+    <div class="ticker-scroll">
+        <div class="ticker-inner" id="ticker">
+            <span class="ticker-item"><span class="ticker-source">Loading</span>Connecting to news sources…</span>
+            <span class="ticker-item"><span class="ticker-source">Loading</span>Connecting to news sources…</span>
+        </div>
     </div>
 </div>
 
-<div id="feed">
+<div class="filter-bar">
+    <button class="cat-btn active" data-cat="All">All</button>
+    <button class="cat-btn" data-cat="World">World</button>
+    <button class="cat-btn" data-cat="Tech">Tech</button>
+    <button class="cat-btn" data-cat="Science">Science</button>
+    <button class="cat-btn" data-cat="Politics">Politics</button>
+    <button class="cat-btn" data-cat="Business">Business</button>
+    <button class="cat-btn" data-cat="Sports">Sports</button>
+    <input class="search-input" type="text" id="search" placeholder="Search headlines…" autocomplete="off">
+</div>
+
+<div class="stats-strip">
+    <div>Total: <span id="s-total">0</span></div>
+    <div>Sources: <span id="s-sources">0</span></div>
+    <div>New this session: <span id="s-new">0</span></div>
+    <div>Status: <span id="s-status">Connecting…</span></div>
+</div>
+
+<div class="card-grid" id="grid">
     <div id="empty-state">
-        <h2>Connecting to Wikipedia stream…</h2>
-        <p>Real-time edits will appear here</p>
+        <h2>Connecting to 24 news sources…</h2>
+        <p>Headlines will appear here shortly</p>
     </div>
 </div>
 
 <script>
-    const MAX_CARDS  = 200;
-    const MAX_QUEUE  = 500;
+    const MAX_CARDS = 400;
+    const TICKER_MAX = 40;
 
-    const feed        = document.getElementById('feed');
-    const statusDot   = document.getElementById('status-dot');
-    const pauseBtn    = document.getElementById('pause-btn');
-    const clearBtn    = document.getElementById('clear-btn');
-    const wikiFilter  = document.getElementById('wiki-filter');
-    const typeFilter  = document.getElementById('type-filter');
-    const speedSelect = document.getElementById('speed-select');
-    const hideBots    = document.getElementById('hide-bots');
+    let allItems  = [];       // { title, link, source, category, pubDate, description, ts }
+    let tickerItems = [];     // last N headlines for ticker
+    let activeCat = 'All';
+    let searchKw  = '';
+    let newCount  = 0;
+    let seenLinks = new Set();
+    let sources   = new Set();
+    let initialLoad = true;   // suppress NEW badge for replayed cache items
 
-    let paused = false;
-    let eventSource = null;
-    let queue = [];
-    let dripTimer = null;
-    let dripInterval = parseInt(speedSelect.value, 10);
+    const grid     = document.getElementById('grid');
+    const tickerEl = document.getElementById('ticker');
+    const dot      = document.getElementById('dot');
 
-    let totalEdits = 0, newPages = 0, botEdits = 0;
-    let recentTimestamps = [];
+    // ── Category colour helpers ─────────────────────────────────────────────
+    function badgeClass(cat) { return 'badge-' + (cat || 'World'); }
 
-    // ── Stats ────────────────────────────────────────────────────────────────
-    function updateStats() {
-        document.getElementById('stat-total').textContent = totalEdits.toLocaleString();
-        document.getElementById('stat-new').textContent   = newPages.toLocaleString();
-        document.getElementById('stat-bots').textContent  = botEdits.toLocaleString();
-        const now = Date.now();
-        recentTimestamps = recentTimestamps.filter(t => now - t < 60000);
-        document.getElementById('stat-rate').textContent  = recentTimestamps.length;
+    // ── Time formatting ─────────────────────────────────────────────────────
+    function timeAgo(dateStr) {
+        if (!dateStr) return '';
+        const d = new Date(dateStr);
+        if (isNaN(d)) return '';
+        const diff = (Date.now() - d) / 1000;
+        if (diff < 60)   return 'just now';
+        if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+        if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+        return Math.floor(diff / 86400) + 'd ago';
     }
 
-    function setConnected(connected) {
-        statusDot.className = 'dot' + (connected ? '' : ' disconnected');
-        document.getElementById('stat-status').textContent = connected ? 'Live' : 'Reconnecting…';
+    function esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
-    // ── Card builder ─────────────────────────────────────────────────────────
-    function esc(str) {
-        if (!str) return '';
-        return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    // ── Ticker ──────────────────────────────────────────────────────────────
+    function rebuildTicker() {
+        const items = tickerItems.slice(-TICKER_MAX);
+        if (items.length === 0) return;
+
+        const html = items.map(item =>
+            `<span class="ticker-item"><span class="ticker-source">${esc(item.source)}</span>${esc(item.title)}</span>`
+        ).join('');
+
+        // Duplicate for seamless loop
+        tickerEl.innerHTML = html + html;
+
+        // Adjust speed based on content length (approx 12px per char at 0.82rem)
+        const charCount = items.reduce((acc, i) => acc + i.title.length + i.source.length + 4, 0);
+        const duration  = Math.max(40, Math.min(160, charCount * 0.18));
+        tickerEl.style.setProperty('--ticker-duration', duration + 's');
+
+        // Restart animation
+        tickerEl.style.animation = 'none';
+        tickerEl.offsetHeight; // reflow
+        tickerEl.style.animation = '';
     }
 
-    function formatDiff(size) {
-        if (size === 0) return { text: '±0', cls: 'diff-zero' };
-        return { text: (size > 0 ? '+' : '') + size.toLocaleString(), cls: size > 0 ? 'diff-positive' : 'diff-negative' };
-    }
+    // ── Card creation ────────────────────────────────────────────────────────
+    function createCard(item, isNew) {
+        const card = document.createElement('div');
+        card.className = 'news-card';
+        card.dataset.cat    = item.category || 'World';
+        card.dataset.title  = (item.title || '').toLowerCase();
+        card.dataset.source = (item.source || '').toLowerCase();
 
-    function createCard(edit) {
-        const card    = document.createElement('div');
-        card.className = 'edit-card';
-        const isNew   = edit.type === 'new';
-        const isBot   = edit.bot;
-        const isMinor = edit.minor;
-        const diff    = edit.length ? (edit.length.new || 0) - (edit.length.old || 0) : 0;
-
-        if (isNew)              card.classList.add('new-page');
-        else if (isBot)         card.classList.add('bot-edit');
-        else if (Math.abs(diff) > 2000) card.classList.add('large-edit');
-        else if (isMinor)       card.classList.add('minor-edit');
-
-        const articleUrl = edit.server_url
-            ? `${edit.server_url}/wiki/${encodeURIComponent((edit.title || '').replace(/ /g, '_'))}`
-            : '#';
-
-        const tags = [];
-        if (isNew)   tags.push('<span class="tag new">NEW</span>');
-        if (isBot)   tags.push('<span class="tag bot">BOT</span>');
-        if (isMinor) tags.push('<span class="tag minor">MINOR</span>');
-
-        const diffInfo = formatDiff(diff);
-        const comment  = edit.comment
-            ? esc(edit.comment).replace(/\/\*(.+?)\*\//g, '<strong>[$1]</strong>')
-            : '';
+        const newBadge = isNew ? '<span class="new-badge">New</span>' : '';
 
         card.innerHTML = `
-            <div class="wiki-badge">${esc(edit.wiki || '')}</div>
-            <div class="edit-main">
-                <div class="edit-title">
-                    <a href="${articleUrl}" target="_blank" rel="noopener">${esc(edit.title || '')}</a>
-                    ${tags.join(' ')}
-                </div>
-                <div class="edit-meta">
-                    <span>by <strong>${esc(edit.user || 'unknown')}</strong></span>
-                    <span>${new Date((edit.timestamp || 0) * 1000).toLocaleTimeString()}</span>
-                </div>
-                ${comment ? `<div class="edit-comment">${comment}</div>` : ''}
+            <div class="card-meta">
+                <span class="source-badge ${badgeClass(item.category)}">${esc(item.category)}</span>
+                <span class="card-time">${timeAgo(item.pubDate)}</span>
             </div>
-            <div class="diff-size ${diffInfo.cls}">${diffInfo.text}</div>
+            <div class="card-title">
+                <a href="${esc(item.link)}" target="_blank" rel="noopener">${esc(item.title)}${newBadge}</a>
+            </div>
+            ${item.description ? `<div class="card-desc">${esc(item.description)}</div>` : ''}
+            <div class="card-source-name">${esc(item.source)}</div>
         `;
         return card;
     }
 
-    // ── Drip queue ───────────────────────────────────────────────────────────
-    function drip() {
-        if (paused || queue.length === 0) return;
-        const edit = queue.shift();
+    // ── Filtering ────────────────────────────────────────────────────────────
+    function matchesFilter(item) {
+        if (activeCat !== 'All' && item.category !== activeCat) return false;
+        if (searchKw) {
+            const kw = searchKw.toLowerCase();
+            if (!(item.title || '').toLowerCase().includes(kw) &&
+                !(item.source || '').toLowerCase().includes(kw) &&
+                !(item.description || '').toLowerCase().includes(kw)) return false;
+        }
+        return true;
+    }
+
+    // ── Full re-render (on filter change) ────────────────────────────────────
+    function rerender() {
+        grid.innerHTML = '';
+        const visible = allItems.filter(matchesFilter).slice(0, MAX_CARDS);
+        if (visible.length === 0) {
+            grid.innerHTML = '<div id="empty-state"><h2>No matching stories</h2><p>Try a different filter</p></div>';
+            return;
+        }
+        visible.forEach(item => grid.appendChild(createCard(item, false)));
+    }
+
+    // ── Add one item (from SSE) ──────────────────────────────────────────────
+    function addItem(item, isNew) {
+        if (seenLinks.has(item.link)) return;
+        seenLinks.add(item.link);
+
+        sources.add(item.source);
+        allItems.unshift(item);
+        if (allItems.length > MAX_CARDS * 2) allItems = allItems.slice(0, MAX_CARDS);
+
+        tickerItems.push(item);
+        if (tickerItems.length > TICKER_MAX) tickerItems.shift();
+
+        if (isNew) {
+            newCount++;
+            document.getElementById('s-new').textContent = newCount;
+            // Rebuild ticker every 5 new items to keep it fresh
+            if (newCount % 5 === 0) rebuildTicker();
+        }
+
+        document.getElementById('s-total').textContent   = seenLinks.size;
+        document.getElementById('s-sources').textContent = sources.size;
+
+        // Only insert card if it matches the current filter
+        if (!matchesFilter(item)) return;
 
         document.getElementById('empty-state')?.remove();
-        const card = createCard(edit);
-        feed.insertBefore(card, feed.firstChild);
 
-        const cards = feed.querySelectorAll('.edit-card');
+        const card = createCard(item, isNew);
+        grid.insertBefore(card, grid.firstChild);
+
+        // Trim DOM
+        const cards = grid.querySelectorAll('.news-card');
         if (cards.length > MAX_CARDS) {
             for (let i = MAX_CARDS; i < cards.length; i++) cards[i].remove();
-            if (!feed.querySelector('.overflow-notice')) {
-                const notice = document.createElement('div');
-                notice.className = 'overflow-notice';
-                notice.textContent = `Showing latest ${MAX_CARDS} edits`;
-                feed.appendChild(notice);
-            }
         }
-        updateStats();
-    }
-
-    function startDrip() {
-        clearInterval(dripTimer);
-        if (dripInterval === 0) {
-            // Instant mode: flush queue each tick via a fast interval
-            dripTimer = setInterval(() => { while (queue.length) drip(); }, 50);
-        } else {
-            dripTimer = setInterval(drip, dripInterval);
-        }
-    }
-
-    // ── Enqueue incoming edit ────────────────────────────────────────────────
-    function enqueue(edit) {
-        if (hideBots.checked && edit.bot) return;
-        if (typeFilter.value === 'new' && edit.type !== 'new') return;
-
-        totalEdits++;
-        recentTimestamps.push(Date.now());
-        if (edit.type === 'new') newPages++;
-        if (edit.bot) botEdits++;
-
-        queue.push(edit);
-        if (queue.length > MAX_QUEUE) queue.shift();
     }
 
     // ── SSE connection ────────────────────────────────────────────────────────
-    function connect() {
-        if (eventSource) eventSource.close();
-        const wiki = wikiFilter.value;
-        const url  = '/stream/edits' + (wiki ? `?wiki=${encodeURIComponent(wiki)}` : '');
-        eventSource = new EventSource(url);
-        eventSource.addEventListener('edit', e => {
-            try { enqueue(JSON.parse(e.data)); } catch (err) { console.error('Parse error', err); }
-        });
-        eventSource.onopen  = () => setConnected(true);
-        eventSource.onerror = () => setConnected(false);
+    let eventSource = null;
+    let batchBuffer = [];
+    let batchTimer  = null;
+
+    function flushBatch() {
+        // Sort batch oldest-first so insertion order is chronological
+        batchBuffer.sort((a, b) => new Date(a.pubDate) - new Date(b.pubDate));
+        batchBuffer.forEach(item => addItem(item, !initialLoad));
+        batchBuffer = [];
+        if (initialLoad) {
+            initialLoad = false;
+            rebuildTicker();
+        }
     }
 
-    function resetFeed() {
-        queue = [];
-        feed.innerHTML = '';
-        totalEdits = 0; newPages = 0; botEdits = 0; recentTimestamps = [];
-        updateStats();
+    function connect() {
+        if (eventSource) eventSource.close();
+        initialLoad = true;
+
+        eventSource = new EventSource('/stream/news');
+
+        eventSource.addEventListener('news', e => {
+            try {
+                const item = JSON.parse(e.data);
+                batchBuffer.push(item);
+                clearTimeout(batchTimer);
+                // Flush after 200ms quiet period (batch the initial cache replay)
+                batchTimer = setTimeout(flushBatch, 200);
+            } catch (err) {
+                console.error(err);
+            }
+        });
+
+        eventSource.onopen  = () => {
+            dot.className = 'dot';
+            document.getElementById('s-status').textContent = 'Live';
+        };
+        eventSource.onerror = () => {
+            dot.className = 'dot off';
+            document.getElementById('s-status').textContent = 'Reconnecting…';
+        };
     }
 
     // ── Controls ──────────────────────────────────────────────────────────────
-    pauseBtn.addEventListener('click', () => {
-        paused = !paused;
-        pauseBtn.textContent = paused ? 'Resume' : 'Pause';
-        pauseBtn.className   = paused ? 'button' : 'secondary';
+    document.querySelectorAll('.cat-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeCat = btn.dataset.cat;
+            rerender();
+        });
     });
 
-    clearBtn.addEventListener('click', resetFeed);
-
-    wikiFilter.addEventListener('change', () => { resetFeed(); connect(); });
-
-    typeFilter.addEventListener('change', resetFeed);
-
-    speedSelect.addEventListener('change', () => {
-        dripInterval = parseInt(speedSelect.value, 10);
-        startDrip();
+    document.getElementById('search').addEventListener('input', e => {
+        searchKw = e.target.value.trim();
+        rerender();
     });
 
-    setInterval(updateStats, 5000);
+    // Update time-ago labels every minute
+    setInterval(() => {
+        grid.querySelectorAll('.card-time').forEach((el, i) => {
+            const item = allItems.filter(matchesFilter)[i];
+            if (item) el.textContent = timeAgo(item.pubDate);
+        });
+    }, 60000);
 
     connect();
-    startDrip();
 </script>
 </body>
 </html>
