@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Wikipedia Edit Trends</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+        }
+
+        header {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .dot {
+            width: 10px; height: 10px;
+            border-radius: 50%;
+            background: #3fb950;
+            animation: pulse 2s infinite;
+        }
+        .dot.off { background: #f85149; animation: none; }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        nav { display: flex; gap: 4px; margin-left: auto; }
+
+        nav a {
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+
+        nav a:hover { color: #e6edf3; background: #21262d; }
+        nav a.active { color: #e6edf3; border-color: #30363d; background: #21262d; }
+
+        .stat-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 12px;
+            padding: 20px 24px;
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        .stat-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px 20px;
+        }
+
+        .stat-card .label {
+            font-size: 0.75rem;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+
+        .stat-card .value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .stat-card .sub {
+            font-size: 0.75rem;
+            color: #8b949e;
+            margin-top: 4px;
+        }
+
+        .value.green { color: #3fb950; }
+        .value.blue { color: #58a6ff; }
+        .value.orange { color: #f0883e; }
+        .value.purple { color: #bc8cff; }
+
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+            padding: 0 24px 24px;
+            max-width: 1300px;
+            margin: 0 auto;
+        }
+
+        .chart-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .chart-card.wide { grid-column: span 2; }
+
+        .chart-card h2 {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 16px;
+        }
+
+        .chart-wrap { position: relative; height: 240px; }
+        .chart-wrap.tall { height: 300px; }
+
+        .leaderboard {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .leaderboard li {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+        }
+
+        .leaderboard .rank {
+            width: 20px;
+            text-align: right;
+            color: #8b949e;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        .leaderboard .name {
+            flex: 1;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .leaderboard .name a { color: #58a6ff; text-decoration: none; }
+        .leaderboard .name a:hover { text-decoration: underline; }
+
+        .leaderboard .bar-wrap {
+            width: 100px;
+            background: #21262d;
+            border-radius: 3px;
+            height: 6px;
+            flex-shrink: 0;
+        }
+
+        .leaderboard .bar {
+            height: 100%;
+            border-radius: 3px;
+            background: #58a6ff;
+            transition: width 0.5s ease;
+        }
+
+        .leaderboard .count {
+            width: 40px;
+            text-align: right;
+            color: #8b949e;
+            font-size: 0.75rem;
+            flex-shrink: 0;
+        }
+
+        @media (max-width: 700px) {
+            .charts-grid { grid-template-columns: 1fr; }
+            .chart-card.wide { grid-column: span 1; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1><div class="dot" id="dot"></div>Wikipedia Edit Trends</h1>
+    <nav>
+        <a href="/">Live Feed</a>
+        <a href="/trends.html" class="active">Wiki Trends</a>
+        <a href="/x-trends.html">X Trends</a>
+        <a href="/google-trends.html">Google Trends</a>
+        <a href="/bluesky.html">Bluesky</a>
+    </nav>
+</header>
+
+<div class="stat-row">
+    <div class="stat-card">
+        <div class="label">Total Edits</div>
+        <div class="value blue" id="s-total">—</div>
+        <div class="sub">since page load</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Edits / min</div>
+        <div class="value green" id="s-rate">—</div>
+        <div class="sub">5-min average</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">New Pages</div>
+        <div class="value orange" id="s-new">—</div>
+        <div class="sub">since page load</div>
+    </div>
+    <div class="stat-card">
+        <div class="label">Bot Edits</div>
+        <div class="value purple" id="s-bots">—</div>
+        <div class="sub">since page load</div>
+    </div>
+</div>
+
+<div class="charts-grid">
+
+    <div class="chart-card wide">
+        <h2>Edit rate — last 15 minutes (UTC)</h2>
+        <div class="chart-wrap">
+            <canvas id="rateChart"></canvas>
+        </div>
+    </div>
+
+    <div class="chart-card">
+        <h2>Top 10 articles</h2>
+        <ul class="leaderboard" id="topArticles"></ul>
+    </div>
+
+    <div class="chart-card">
+        <h2>Top 10 editors (human)</h2>
+        <ul class="leaderboard" id="topEditors"></ul>
+    </div>
+
+    <div class="chart-card">
+        <h2>Edits by wiki</h2>
+        <div class="chart-wrap"><canvas id="wikiChart"></canvas></div>
+    </div>
+
+    <div class="chart-card">
+        <h2>Human vs bot split</h2>
+        <div class="chart-wrap"><canvas id="botChart"></canvas></div>
+    </div>
+
+</div>
+
+<script>
+    Chart.defaults.color = '#8b949e';
+    Chart.defaults.borderColor = '#30363d';
+
+    const CHART_COLORS = [
+        '#58a6ff','#3fb950','#f0883e','#bc8cff',
+        '#ff7b72','#79c0ff','#56d364','#ffa657',
+        '#d2a8ff','#ffa198'
+    ];
+
+    // ── Rate chart (line) ──────────────────────────────────────────────────
+    const rateCtx = document.getElementById('rateChart').getContext('2d');
+    const rateChart = new Chart(rateCtx, {
+        type: 'line',
+        data: {
+            labels: [],
+            datasets: [
+                {
+                    label: 'All edits',
+                    data: [],
+                    borderColor: '#58a6ff',
+                    backgroundColor: 'rgba(88,166,255,0.1)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                },
+                {
+                    label: 'Human edits',
+                    data: [],
+                    borderColor: '#3fb950',
+                    backgroundColor: 'rgba(63,185,80,0.08)',
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                },
+                {
+                    label: 'New pages',
+                    data: [],
+                    borderColor: '#f0883e',
+                    backgroundColor: 'transparent',
+                    borderDash: [4, 3],
+                    tension: 0.4,
+                    pointRadius: 2,
+                }
+            ]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            scales: {
+                x: { grid: { color: '#21262d' } },
+                y: { beginAtZero: true, grid: { color: '#21262d' } }
+            },
+            plugins: { legend: { position: 'top' } }
+        }
+    });
+
+    // ── Wiki doughnut ──────────────────────────────────────────────────────
+    const wikiCtx = document.getElementById('wikiChart').getContext('2d');
+    const wikiChart = new Chart(wikiCtx, {
+        type: 'doughnut',
+        data: { labels: [], datasets: [{ data: [], backgroundColor: CHART_COLORS, borderWidth: 0 }] },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            plugins: { legend: { position: 'right', labels: { boxWidth: 12, font: { size: 11 } } } }
+        }
+    });
+
+    // ── Bot doughnut ───────────────────────────────────────────────────────
+    const botCtx = document.getElementById('botChart').getContext('2d');
+    const botChart = new Chart(botCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['Human', 'Bot'],
+            datasets: [{
+                data: [0, 0],
+                backgroundColor: ['#3fb950', '#8b949e'],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 400 },
+            plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } }
+        }
+    });
+
+    // ── Leaderboard helper ─────────────────────────────────────────────────
+    function renderLeaderboard(listId, items, linkFn) {
+        const ul = document.getElementById(listId);
+        const max = items.length > 0 ? items[0].count : 1;
+        ul.innerHTML = items.map((item, i) => `
+            <li>
+                <span class="rank">${i + 1}</span>
+                <span class="name">
+                    ${linkFn(item)
+                        ? `<a href="${linkFn(item)}" target="_blank" rel="noopener">${esc(item.name)}</a>`
+                        : esc(item.name)}
+                </span>
+                <div class="bar-wrap"><div class="bar" style="width:${(item.count/max*100).toFixed(1)}%"></div></div>
+                <span class="count">${item.count.toLocaleString()}</span>
+            </li>
+        `).join('');
+    }
+
+    function esc(s) {
+        return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ── SSE ────────────────────────────────────────────────────────────────
+    function connect() {
+        const es = new EventSource('/stream/trends');
+
+        es.addEventListener('trends', e => {
+            const d = JSON.parse(e.data);
+
+            // Stats
+            document.getElementById('s-total').textContent = d.totalEdits.toLocaleString();
+            document.getElementById('s-rate').textContent = d.editsPerMinute.toFixed(1);
+            document.getElementById('s-new').textContent = d.newPages.toLocaleString();
+            document.getElementById('s-bots').textContent = d.botEdits.toLocaleString();
+
+            // Rate chart
+            rateChart.data.labels = d.editRate.map(b => b.label);
+            rateChart.data.datasets[0].data = d.editRate.map(b => b.edits);
+            rateChart.data.datasets[1].data = d.editRate.map(b => b.edits - b.bots);
+            rateChart.data.datasets[2].data = d.editRate.map(b => b.newPages);
+            rateChart.update();
+
+            // Wiki chart
+            const wikiKeys = Object.keys(d.wikiBreakdown);
+            wikiChart.data.labels = wikiKeys;
+            wikiChart.data.datasets[0].data = wikiKeys.map(k => d.wikiBreakdown[k]);
+            wikiChart.update();
+
+            // Bot chart
+            const human = d.totalEdits - d.botEdits;
+            botChart.data.datasets[0].data = [human, d.botEdits];
+            botChart.update();
+
+            // Leaderboards
+            renderLeaderboard('topArticles', d.topArticles, item => item.url || null);
+            renderLeaderboard('topEditors', d.topEditors, () => null);
+        });
+
+        es.onerror = () => document.getElementById('dot').className = 'dot off';
+        es.onopen  = () => document.getElementById('dot').className = 'dot';
+    }
+
+    connect();
+</script>
+</body>
+</html>

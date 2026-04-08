@@ -1,0 +1,113 @@
+package com.wikipedia.monitor.service;
+
+import com.wikipedia.monitor.model.GoogleTrend;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Flux;
+import reactor.core.publisher.Mono;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
+
+@Service
+public class GoogleTrendsService {
+
+    private static final Logger log = LoggerFactory.getLogger(GoogleTrendsService.class);
+    private static final String RSS_BASE = "https://trends.google.com/trending/rss";
+    private static final Duration POLL_INTERVAL = Duration.ofMinutes(15);
+
+    // Patterns for RSS XML parsing (no XML library needed — the feed is simple/consistent)
+    private static final Pattern ITEM_P    = Pattern.compile("<item>(.*?)</item>", Pattern.DOTALL);
+    private static final Pattern TITLE_P   = Pattern.compile("<title><!\\[CDATA\\[(.*?)]]></title>|<title>(.*?)</title>");
+    private static final Pattern TRAFFIC_P = Pattern.compile("<ht:approx_traffic>(.*?)</ht:approx_traffic>");
+    private static final Pattern PUBDATE_P = Pattern.compile("<pubDate>(.*?)</pubDate>");
+    private static final Pattern NEWS_P    = Pattern.compile("<ht:news_item>(.*?)</ht:news_item>", Pattern.DOTALL);
+    private static final Pattern NEWS_TITLE_P   = Pattern.compile("<ht:news_item_title><!\\[CDATA\\[(.*?)]]></ht:news_item_title>|<ht:news_item_title>(.*?)</ht:news_item_title>");
+    private static final Pattern NEWS_URL_P     = Pattern.compile("<ht:news_item_url><!\\[CDATA\\[(.*?)]]></ht:news_item_url>|<ht:news_item_url>(.*?)</ht:news_item_url>");
+    private static final Pattern NEWS_SOURCE_P  = Pattern.compile("<ht:news_item_source><!\\[CDATA\\[(.*?)]]></ht:news_item_source>|<ht:news_item_source>(.*?)</ht:news_item_source>");
+    private static final Pattern NEWS_SNIPPET_P = Pattern.compile("<ht:news_item_snippet><!\\[CDATA\\[(.*?)]]></ht:news_item_snippet>|<ht:news_item_snippet>(.*?)</ht:news_item_snippet>");
+
+    private final WebClient webClient;
+    private volatile List<GoogleTrend> cache = Collections.emptyList();
+
+    public GoogleTrendsService() {
+        this.webClient = WebClient.builder()
+                .defaultHeader("User-Agent", "Mozilla/5.0 (compatible; WikipediaMonitor/1.0)")
+                .codecs(c -> c.defaultCodecs().maxInMemorySize(4 * 1024 * 1024))
+                .build();
+    }
+
+    public Mono<List<GoogleTrend>> fetchTrends(String geo) {
+        return webClient.get()
+                .uri(RSS_BASE + "?geo=" + geo)
+                .retrieve()
+                .bodyToMono(String.class)
+                .map(this::parseRss)
+                .doOnNext(trends -> cache = trends)
+                .onErrorResume(ex -> {
+                    log.error("Failed to fetch Google Trends for {}: {}", geo, ex.getMessage());
+                    return Mono.just(cache);
+                });
+    }
+
+    public Flux<List<GoogleTrend>> trendStream(String geo) {
+        return Flux.interval(Duration.ZERO, POLL_INTERVAL)
+                .flatMap(tick -> fetchTrends(geo));
+    }
+
+    public List<GoogleTrend> getCache() {
+        return cache;
+    }
+
+    private List<GoogleTrend> parseRss(String xml) {
+        List<GoogleTrend> trends = new ArrayList<>();
+        Matcher items = ITEM_P.matcher(xml);
+
+        while (items.find()) {
+            String item = items.group(1);
+
+            String title = first(TITLE_P.matcher(item));
+            String traffic = first(TRAFFIC_P.matcher(item));
+            String pubDate = first(PUBDATE_P.matcher(item));
+
+            // Build search URL
+            String searchUrl = title != null
+                    ? "https://www.google.com/search?q=" + title.replace(" ", "+") + "&tbm=nws"
+                    : "#";
+
+            // Parse nested news items
+            List<GoogleTrend.NewsArticle> articles = new ArrayList<>();
+            Matcher newsM = NEWS_P.matcher(item);
+            while (newsM.find()) {
+                String news = newsM.group(1);
+                String nTitle   = first(NEWS_TITLE_P.matcher(news));
+                String nUrl     = first(NEWS_URL_P.matcher(news));
+                String nSource  = first(NEWS_SOURCE_P.matcher(news));
+                String nSnippet = first(NEWS_SNIPPET_P.matcher(news));
+                if (nTitle != null)
+                    articles.add(new GoogleTrend.NewsArticle(nTitle, nUrl, nSource, nSnippet));
+            }
+
+            if (title != null)
+                trends.add(new GoogleTrend(title, searchUrl, traffic, pubDate, articles));
+        }
+
+        return trends;
+    }
+
+    /** Returns first captured group (handles CDATA and plain variants). */
+    private String first(Matcher m) {
+        if (!m.find()) return null;
+        for (int i = 1; i <= m.groupCount(); i++) {
+            String g = m.group(i);
+            if (g != null && !g.isBlank()) return g.trim();
+        }
+        return null;
+    }
+}

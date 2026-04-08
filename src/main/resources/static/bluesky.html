@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bluesky Live Feed</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+        }
+
+        header {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Bluesky butterfly logo */
+        .bsky-logo {
+            width: 24px;
+            height: 24px;
+            fill: #0085ff;
+            flex-shrink: 0;
+        }
+
+        .dot {
+            width: 9px; height: 9px;
+            border-radius: 50%;
+            background: #3fb950;
+            animation: pulse 2s infinite;
+        }
+        .dot.off { background: #f85149; animation: none; }
+
+        @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.35} }
+
+        nav { display: flex; gap: 4px; margin-left: auto; }
+        nav a {
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+        nav a:hover { color: #e6edf3; background: #21262d; }
+        nav a.active { color: #e6edf3; border-color: #30363d; background: #21262d; }
+
+        /* ── Toolbar ── */
+        .toolbar {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        select, button, input[type=text] {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #e6edf3;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+        input[type=text] { cursor: text; width: 200px; }
+        input[type=text]:focus, select:focus { outline: 1px solid #0085ff; border-color: #0085ff; }
+
+        button.secondary { }
+        button.secondary:hover { background: #30363d; }
+        button.danger { background: #b62324; border-color: #f85149; }
+        button.danger:hover { background: #da3633; }
+
+        label.toggle {
+            font-size: 0.85rem;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            cursor: pointer;
+            color: #8b949e;
+        }
+        input[type=checkbox] { width: 14px; height: 14px; cursor: pointer; }
+
+        /* ── Stats bar ── */
+        .stats-bar {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 8px 24px;
+            display: flex;
+            gap: 24px;
+            font-size: 0.8rem;
+            color: #8b949e;
+            flex-wrap: wrap;
+        }
+        .stats-bar .stat span { color: #e6edf3; font-weight: 600; }
+
+        /* ── Feed ── */
+        #feed {
+            max-width: 780px;
+            margin: 24px auto 120px;
+            padding: 0 16px;
+        }
+
+        /* ── Post card ── */
+        .post-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 12px;
+            padding: 14px 16px;
+            margin-bottom: 10px;
+            animation: slideUp 0.5s cubic-bezier(0.22, 1, 0.36, 1) both;
+            transition: border-color 0.15s, opacity 0.15s;
+        }
+        .post-card:hover { border-color: #0085ff; }
+        .post-card.has-image { border-left: 3px solid #bc8cff; }
+        .post-card.has-link  { border-left: 3px solid #f0883e; }
+
+        /* Cards enter from below and float upward */
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(24px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* Fade out oldest cards when they get trimmed */
+        .post-card.fading {
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: opacity 0.4s ease, transform 0.4s ease;
+        }
+
+        .post-meta {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .avatar {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            background: linear-gradient(135deg, #0085ff 0%, #bc8cff 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: #fff;
+            flex-shrink: 0;
+            text-decoration: none;
+        }
+
+        .post-who { flex: 1; overflow: hidden; }
+
+        .post-did {
+            font-size: 0.78rem;
+            color: #8b949e;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .post-did a { color: #8b949e; text-decoration: none; }
+        .post-did a:hover { color: #58a6ff; }
+
+        .post-time { font-size: 0.75rem; color: #8b949e; white-space: nowrap; }
+
+        .post-body {
+            font-size: 0.9rem;
+            line-height: 1.55;
+            word-break: break-word;
+            white-space: pre-wrap;
+        }
+
+        .post-footer {
+            display: flex;
+            gap: 10px;
+            margin-top: 8px;
+            flex-wrap: wrap;
+        }
+
+        .tag {
+            font-size: 0.7rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .tag.lang   { background: #1c2d47; color: #79c0ff; }
+        .tag.image  { background: #2e1d5e; color: #bc8cff; }
+        .tag.link   { background: #2a1d0e; color: #ffa657; }
+
+        .post-link {
+            font-size: 0.78rem;
+        }
+        .post-link a { color: #0085ff; text-decoration: none; }
+        .post-link a:hover { text-decoration: underline; }
+
+        /* ── Highlight keyword ── */
+        .hl { background: rgba(255,213,0,0.25); border-radius: 2px; }
+
+        #empty-state {
+            text-align: center;
+            padding: 80px 20px;
+            color: #8b949e;
+        }
+        #empty-state h2 { font-size: 1.1rem; margin-bottom: 8px; }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>
+        <!-- Bluesky butterfly SVG -->
+        <svg class="bsky-logo" viewBox="0 0 360 320" xmlns="http://www.w3.org/2000/svg">
+            <path d="M180 142c-16.3-31.7-60.7-90.8-102-120C38 0 0 10 0 60c0 12.3 6.9 100.3 11.5 114.5 14.7 42.4 68.1 53.9 116.5 47.1-49.8 8.3-94 28.3-35.5 99.7 35.4 44.1 69.3-9.4 87.5-61.5 18.2 52.1 36.6 103.9 87.5 61.5 56.7-71.1 14.2-91.4-35.5-99.7 48.4 6.8 101.8-4.6 116.5-47.1C352.9 160.3 360 72.3 360 60c0-50-38-60-78-20C240.7 51.2 196.3 110.3 180 142z"/>
+        </svg>
+        <div class="dot" id="dot"></div>
+        Bluesky Live
+    </h1>
+    <nav>
+        <a href="/">Wikipedia</a>
+        <a href="/trends.html">Wiki Trends</a>
+        <a href="/x-trends.html">X Trends</a>
+        <a href="/google-trends.html">Google Trends</a>
+        <a href="/bluesky.html" class="active">Bluesky</a>
+    </nav>
+</header>
+
+<div class="toolbar">
+    <label style="font-size:.875rem;color:#8b949e;">Language</label>
+    <select id="lang-filter">
+        <option value="">All languages</option>
+        <option value="en" selected>English</option>
+        <option value="ja">Japanese</option>
+        <option value="pt">Portuguese</option>
+        <option value="es">Spanish</option>
+        <option value="de">German</option>
+        <option value="fr">French</option>
+        <option value="ko">Korean</option>
+        <option value="zh">Chinese</option>
+    </select>
+    <input type="text" id="keyword-filter" placeholder="Filter by keyword…" autocomplete="off">
+    <label class="toggle">
+        <input type="checkbox" id="hide-links"> Hide link-only posts
+    </label>
+    <label style="font-size:.875rem;color:#8b949e;display:flex;align-items:center;gap:8px;margin-left:8px;">
+        Speed
+        <input type="range" id="speed-slider" min="1" max="5" value="2"
+               style="width:90px;cursor:pointer;accent-color:#0085ff;background:transparent;border:none;padding:0;">
+        <span id="speed-label" style="color:#e6edf3;min-width:36px;">1.5s</span>
+    </label>
+    <button class="secondary" id="pause-btn">Pause</button>
+    <button class="danger" id="clear-btn">Clear</button>
+</div>
+
+<div class="stats-bar">
+    <div class="stat">Posts seen: <span id="s-total">0</span></div>
+    <div class="stat">Posts/sec: <span id="s-rate">0</span></div>
+    <div class="stat">With images: <span id="s-images">0</span></div>
+    <div class="stat">With links: <span id="s-links">0</span></div>
+    <div class="stat">Filtered out: <span id="s-filtered">0</span></div>
+    <div class="stat">In queue: <span id="s-queue">0</span></div>
+</div>
+
+<div id="feed">
+    <div id="empty-state">
+        <h2>Connecting to Bluesky firehose…</h2>
+        <p>Posts will appear here as they are published on Bluesky</p>
+    </div>
+</div>
+
+<script>
+    const MAX_CARDS  = 60;   // keep DOM lean; older cards fade out
+    const MAX_QUEUE  = 500;  // drop oldest if queue grows too large
+
+    // Speed slider → interval in ms (1=3s, 2=1.5s, 3=0.8s, 4=0.4s, 5=0.15s)
+    const SPEED_MAP = { 1: 3000, 2: 1500, 3: 800, 4: 400, 5: 150 };
+    const SPEED_LABEL = { 1: '3s', 2: '1.5s', 3: '0.8s', 4: '0.4s', 5: '0.15s' };
+
+    let dripInterval = SPEED_MAP[2];
+    let dripTimer    = null;
+    let paused       = false;
+    let autoScroll   = true;   // follow new posts unless user scrolls up
+
+    let queue = [];
+    let totalSeen = 0, withImages = 0, withLinks = 0, filtered = 0;
+    let recentTs = [];
+    let eventSource = null;
+
+    const feed        = document.getElementById('feed');
+    const pauseBtn    = document.getElementById('pause-btn');
+    const clearBtn    = document.getElementById('clear-btn');
+    const langSel     = document.getElementById('lang-filter');
+    const kwInput     = document.getElementById('keyword-filter');
+    const hideLinks   = document.getElementById('hide-links');
+    const speedSlider = document.getElementById('speed-slider');
+    const speedLabel  = document.getElementById('speed-label');
+
+    // ── Helpers ───────────────────────────────────────────────────────────
+    function esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    function initials(did) {
+        const parts = (did || '').split(':');
+        const key = parts[parts.length - 1] || '?';
+        return key.slice(0, 2).toUpperCase();
+    }
+
+    function avatarHue(did) {
+        let h = 0;
+        for (let i = 0; i < did.length; i++) h = (h * 31 + did.charCodeAt(i)) & 0xffff;
+        return h % 360;
+    }
+
+    function highlight(text, kw) {
+        if (!kw) return esc(text);
+        const re = new RegExp('(' + kw.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + ')', 'gi');
+        return esc(text).replace(re, '<mark class="hl">$1</mark>');
+    }
+
+    function formatTime(iso) {
+        if (!iso) return '';
+        try { return new Date(iso).toLocaleTimeString(); } catch { return ''; }
+    }
+
+    function updateStats() {
+        document.getElementById('s-total').textContent    = totalSeen.toLocaleString();
+        document.getElementById('s-images').textContent   = withImages.toLocaleString();
+        document.getElementById('s-links').textContent    = withLinks.toLocaleString();
+        document.getElementById('s-filtered').textContent = filtered.toLocaleString();
+        document.getElementById('s-queue').textContent    = queue.length.toLocaleString();
+        const now = Date.now();
+        recentTs = recentTs.filter(t => now - t < 5000);
+        document.getElementById('s-rate').textContent = (recentTs.length / 5).toFixed(1);
+    }
+
+    // ── Card factory ──────────────────────────────────────────────────────
+    function createCard(post) {
+        const text       = post.text || '';
+        const did        = post.did  || '';
+        const createdAt  = post.createdAt || '';
+        const langs      = post.langs || [];
+        const postUrl    = post.postUrl || null;
+        const profileUrl = post.profileUrl || null;
+        const hasImg     = post.hasImage;
+        const hasLnk     = post.hasLink;
+        const kw         = kwInput.value.trim();
+        const hue        = avatarHue(did);
+
+        const card = document.createElement('div');
+        card.className = 'post-card' + (hasImg ? ' has-image' : hasLnk ? ' has-link' : '');
+
+        const langTags = langs.slice(0, 3).map(l =>
+            `<span class="tag lang">${esc(l)}</span>`).join('');
+
+        card.innerHTML = `
+            <div class="post-meta">
+                <a class="avatar" href="${esc(profileUrl)}" target="_blank" rel="noopener"
+                   style="background:linear-gradient(135deg,hsl(${hue},70%,50%),hsl(${(hue+60)%360},70%,60%))"
+                   title="${esc(did)}">
+                    ${initials(did)}
+                </a>
+                <div class="post-who">
+                    <div class="post-did">
+                        <a href="${esc(profileUrl)}" target="_blank" rel="noopener">${esc(did)}</a>
+                    </div>
+                </div>
+                <span class="post-time">${formatTime(createdAt)}</span>
+            </div>
+            <div class="post-body">${highlight(text, kw)}</div>
+            <div class="post-footer">
+                ${langTags}
+                ${hasImg ? '<span class="tag image">image</span>' : ''}
+                ${hasLnk ? '<span class="tag link">link</span>' : ''}
+                ${postUrl ? `<span class="post-link"><a href="${esc(postUrl)}" target="_blank" rel="noopener">View post →</a></span>` : ''}
+            </div>
+        `;
+        return card;
+    }
+
+    // ── Trim overflow with fade ───────────────────────────────────────────
+    function trimOldCards() {
+        const cards = feed.querySelectorAll('.post-card');
+        if (cards.length <= MAX_CARDS) return;
+        // Fade out and remove the oldest (first in DOM = oldest since we append)
+        const oldest = cards[0];
+        oldest.classList.add('fading');
+        setTimeout(() => oldest.remove(), 420);
+    }
+
+    // ── Drip one post from the queue ──────────────────────────────────────
+    function drip() {
+        if (paused || queue.length === 0) return;
+
+        const post = queue.shift();
+        document.getElementById('empty-state')?.remove();
+
+        const card = createCard(post);
+        feed.appendChild(card);   // new posts go to the BOTTOM
+        trimOldCards();
+
+        // Smoothly scroll to the new card if the user hasn't scrolled away
+        if (autoScroll) {
+            card.scrollIntoView({ behavior: 'smooth', block: 'end' });
+        }
+
+        updateStats();
+    }
+
+    // ── Start / restart drip timer ────────────────────────────────────────
+    function startDrip() {
+        if (dripTimer) clearInterval(dripTimer);
+        dripTimer = setInterval(drip, dripInterval);
+    }
+
+    // ── Enqueue incoming post ─────────────────────────────────────────────
+    function shouldShow(post) {
+        const text = (post.text || '').toLowerCase();
+        const kw   = kwInput.value.trim().toLowerCase();
+        if (kw && !text.includes(kw)) return false;
+        if (hideLinks.checked && post.hasLink && !post.hasImage) return false;
+        return true;
+    }
+
+    function enqueue(post) {
+        totalSeen++;
+        recentTs.push(Date.now());
+        if (post.hasImage) withImages++;
+        if (post.hasLink)  withLinks++;
+
+        if (!shouldShow(post)) {
+            filtered++;
+            return;
+        }
+
+        queue.push(post);
+
+        // Drop old items if the queue grows too large (e.g. tab was backgrounded)
+        if (queue.length > MAX_QUEUE) {
+            filtered += queue.length - MAX_QUEUE;
+            queue = queue.slice(-MAX_QUEUE);
+        }
+    }
+
+    // ── SSE connection ────────────────────────────────────────────────────
+    function connect() {
+        if (eventSource) eventSource.close();
+        queue = [];
+
+        const lang = langSel.value;
+        const url  = '/stream/bluesky' + (lang ? `?lang=${encodeURIComponent(lang)}` : '');
+        eventSource = new EventSource(url);
+
+        eventSource.addEventListener('post', e => {
+            try {
+                const raw = JSON.parse(e.data);
+                enqueue({
+                    did:        raw.did,
+                    text:       raw.commit?.record?.text,
+                    createdAt:  raw.commit?.record?.createdAt,
+                    langs:      raw.commit?.record?.langs,
+                    postUrl:    `https://bsky.app/profile/${raw.did}/post/${raw.commit?.rkey}`,
+                    profileUrl: `https://bsky.app/profile/${raw.did}`,
+                    hasImage:   raw.commit?.record?.embed?.['$type']?.includes('images') ?? false,
+                    hasLink:    raw.commit?.record?.embed?.['$type']?.includes('external') ?? false,
+                });
+            } catch (err) {
+                console.error('Parse error', err);
+            }
+        });
+
+        eventSource.onopen  = () => document.getElementById('dot').className = 'dot';
+        eventSource.onerror = () => document.getElementById('dot').className = 'dot off';
+    }
+
+    // ── Controls ──────────────────────────────────────────────────────────
+    pauseBtn.addEventListener('click', () => {
+        paused = !paused;
+        pauseBtn.textContent = paused ? 'Resume' : 'Pause';
+    });
+
+    clearBtn.addEventListener('click', () => {
+        queue = [];
+        feed.innerHTML = '';
+        totalSeen = 0; withImages = 0; withLinks = 0; filtered = 0; recentTs = [];
+        updateStats();
+    });
+
+    langSel.addEventListener('change', () => {
+        queue = [];
+        totalSeen = 0; withImages = 0; withLinks = 0; filtered = 0; recentTs = [];
+        feed.innerHTML = '';
+        updateStats();
+        connect();
+    });
+
+    speedSlider.addEventListener('input', () => {
+        const v = parseInt(speedSlider.value, 10);
+        dripInterval = SPEED_MAP[v];
+        speedLabel.textContent = SPEED_LABEL[v];
+        startDrip();
+    });
+
+    // Detect if user has scrolled away from the bottom → disable auto-scroll
+    window.addEventListener('scroll', () => {
+        const distFromBottom = document.body.scrollHeight - window.scrollY - window.innerHeight;
+        autoScroll = distFromBottom < 120;
+    });
+
+    setInterval(updateStats, 1000);
+    connect();
+    startDrip();
+</script>
+</body>
+</html>

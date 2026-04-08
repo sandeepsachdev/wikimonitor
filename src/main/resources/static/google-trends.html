@@ -1,0 +1,497 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Google Trending Searches</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            min-height: 100vh;
+        }
+
+        header {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 16px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-wrap: wrap;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        /* Google "G" colours */
+        .g-logo span { font-weight: 800; font-size: 1.3rem; }
+        .g-blue  { color: #4285F4; }
+        .g-red   { color: #EA4335; }
+        .g-yellow{ color: #FBBC05; }
+        .g-green { color: #34A853; }
+
+        nav { display: flex; gap: 4px; margin-left: auto; }
+        nav a {
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+        nav a:hover { color: #e6edf3; background: #21262d; }
+        nav a.active { color: #e6edf3; border-color: #30363d; background: #21262d; }
+
+        .toolbar {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 10px 24px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        select, button {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #e6edf3;
+            border-radius: 6px;
+            padding: 6px 12px;
+            font-size: 0.875rem;
+            cursor: pointer;
+        }
+        select:focus { outline: 1px solid #4285F4; border-color: #4285F4; }
+
+        button.refresh {
+            background: #1a6cc4;
+            border-color: #4285F4;
+            font-weight: 500;
+        }
+        button.refresh:hover { background: #4285F4; }
+        button.refresh:disabled { opacity: 0.5; cursor: default; }
+
+        .last-updated { font-size: 0.8rem; color: #8b949e; margin-left: auto; }
+
+        /* ── Main layout ── */
+        .page { max-width: 1280px; margin: 0 auto; padding: 24px 16px; }
+
+        .summary-row {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .summary-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px 20px;
+        }
+
+        .summary-card .label {
+            font-size: 0.75rem;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 6px;
+        }
+
+        .summary-card .value {
+            font-size: 1.9rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 1fr 380px;
+            gap: 16px;
+        }
+
+        /* ── Trend cards ── */
+        .trend-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+            gap: 12px;
+        }
+
+        .trend-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 16px;
+            animation: fadeIn 0.3s ease-out;
+            transition: border-color 0.15s;
+        }
+        .trend-card:hover { border-color: #4285F4; }
+
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
+
+        .trend-header {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            margin-bottom: 8px;
+        }
+
+        .trend-rank {
+            font-size: 0.75rem;
+            color: #8b949e;
+            padding-top: 2px;
+            min-width: 18px;
+            text-align: right;
+        }
+        .trend-rank.top { color: #FBBC05; font-weight: 700; font-size: 0.85rem; }
+
+        .trend-title {
+            flex: 1;
+            font-weight: 700;
+            font-size: 1rem;
+            line-height: 1.3;
+        }
+
+        .trend-title a { color: #e6edf3; text-decoration: none; }
+        .trend-title a:hover { color: #4285F4; }
+
+        .traffic-badge {
+            font-size: 0.75rem;
+            background: #1a2d1a;
+            color: #3fb950;
+            border: 1px solid #2d4a2d;
+            border-radius: 4px;
+            padding: 2px 7px;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .news-list { display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+
+        .news-item {
+            font-size: 0.8rem;
+            padding: 6px 8px;
+            background: #0d1117;
+            border-radius: 4px;
+            border: 1px solid #21262d;
+        }
+
+        .news-item a {
+            color: #58a6ff;
+            text-decoration: none;
+            font-weight: 500;
+            display: block;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .news-item a:hover { text-decoration: underline; }
+
+        .news-source { color: #8b949e; margin-top: 2px; }
+
+        .news-snippet {
+            color: #8b949e;
+            margin-top: 3px;
+            overflow: hidden;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.4;
+        }
+
+        /* ── Side panel ── */
+        .side-panel { display: flex; flex-direction: column; gap: 16px; }
+
+        .panel-card {
+            background: #161b22;
+            border: 1px solid #30363d;
+            border-radius: 8px;
+            padding: 20px;
+        }
+
+        .panel-card h2 {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #8b949e;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 14px;
+        }
+
+        .chart-wrap { position: relative; height: 260px; }
+
+        /* loading */
+        #loading {
+            text-align: center;
+            padding: 80px;
+            color: #8b949e;
+        }
+
+        @media (max-width: 860px) {
+            .main-grid { grid-template-columns: 1fr; }
+            .side-panel { flex-direction: row; flex-wrap: wrap; }
+            .panel-card { flex: 1 1 280px; }
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>
+        <span class="g-logo">
+            <span class="g-blue">G</span><span class="g-red">o</span><span class="g-yellow">o</span><span class="g-blue">g</span><span class="g-green">l</span><span class="g-red">e</span>
+        </span>
+        Trending Searches
+    </h1>
+    <nav>
+        <a href="/">Live Feed</a>
+        <a href="/trends.html">Wiki Trends</a>
+        <a href="/x-trends.html">X Trends</a>
+        <a href="/google-trends.html" class="active">Google Trends</a>
+        <a href="/bluesky.html">Bluesky</a>
+    </nav>
+</header>
+
+<div class="toolbar">
+    <label style="font-size:.875rem;color:#8b949e;">Country</label>
+    <select id="geo-select">
+        <option value="US">United States</option>
+        <option value="GB">United Kingdom</option>
+        <option value="CA">Canada</option>
+        <option value="AU">Australia</option>
+        <option value="IN">India</option>
+        <option value="DE">Germany</option>
+        <option value="FR">France</option>
+        <option value="JP">Japan</option>
+        <option value="BR">Brazil</option>
+        <option value="MX">Mexico</option>
+    </select>
+    <button class="refresh" id="refresh-btn">Refresh</button>
+    <span class="last-updated" id="last-updated"></span>
+</div>
+
+<div class="page">
+    <div class="summary-row">
+        <div class="summary-card">
+            <div class="label">Trending topics</div>
+            <div class="value" id="s-count" style="color:#4285F4;">—</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Total searches</div>
+            <div class="value" id="s-searches" style="color:#34A853;">—</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">News articles</div>
+            <div class="value" id="s-articles" style="color:#FBBC05;">—</div>
+        </div>
+        <div class="summary-card">
+            <div class="label">Refreshes every</div>
+            <div class="value" style="color:#8b949e;font-size:1.3rem;">15 min</div>
+        </div>
+    </div>
+
+    <div id="loading">Loading trending searches…</div>
+
+    <div id="main" style="display:none;" class="main-grid">
+
+        <div class="trend-grid" id="trend-grid"></div>
+
+        <div class="side-panel">
+            <div class="panel-card">
+                <h2>Search volume — top 10</h2>
+                <div class="chart-wrap">
+                    <canvas id="volumeChart"></canvas>
+                </div>
+            </div>
+            <div class="panel-card">
+                <h2>Searches with news coverage</h2>
+                <div class="chart-wrap" style="height:180px;">
+                    <canvas id="newsChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+
+<script>
+    Chart.defaults.color = '#8b949e';
+    Chart.defaults.borderColor = '#30363d';
+
+    const G_COLORS = ['#4285F4','#EA4335','#FBBC05','#34A853',
+                      '#4285F4','#EA4335','#FBBC05','#34A853','#4285F4','#EA4335'];
+
+    // ── Charts ───────────────────────────────────────────────────────────
+    const volCtx = document.getElementById('volumeChart').getContext('2d');
+    const volumeChart = new Chart(volCtx, {
+        type: 'bar',
+        data: {
+            labels: [],
+            datasets: [{
+                label: 'Searches',
+                data: [],
+                backgroundColor: G_COLORS,
+                borderWidth: 0,
+                borderRadius: 4,
+            }]
+        },
+        options: {
+            indexAxis: 'y',
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 500 },
+            scales: {
+                x: { grid: { color: '#21262d' }, ticks: { callback: v => fmtNum(v) } },
+                y: { grid: { display: false }, ticks: { font: { size: 11 } } }
+            },
+            plugins: { legend: { display: false } }
+        }
+    });
+
+    const newsCtx = document.getElementById('newsChart').getContext('2d');
+    const newsChart = new Chart(newsCtx, {
+        type: 'doughnut',
+        data: {
+            labels: ['With articles', 'No articles'],
+            datasets: [{
+                data: [0, 0],
+                backgroundColor: ['#4285F4', '#21262d'],
+                borderWidth: 0,
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            animation: { duration: 500 },
+            plugins: { legend: { position: 'right', labels: { boxWidth: 12 } } }
+        }
+    });
+
+    // ── Helpers ──────────────────────────────────────────────────────────
+    function fmtNum(n) {
+        if (!n && n !== 0) return '—';
+        if (n >= 1_000_000) return (n/1_000_000).toFixed(1)+'M';
+        if (n >= 1_000) return (n/1_000).toFixed(0)+'K';
+        return n.toLocaleString();
+    }
+
+    function parseTraffic(s) {
+        if (!s) return 0;
+        s = s.replace(/,/g, '').replace(/\+/g, '').trim();
+        if (s.endsWith('M')) return parseFloat(s) * 1_000_000;
+        if (s.endsWith('K')) return parseFloat(s) * 1_000;
+        return parseInt(s, 10) || 0;
+    }
+
+    function esc(s) {
+        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    }
+
+    // ── Render ───────────────────────────────────────────────────────────
+    function render(trends) {
+        document.getElementById('loading').style.display = 'none';
+        document.getElementById('main').style.display = 'grid';
+
+        // Summary stats
+        const totalSearches = trends.reduce((s, t) => s + parseTraffic(t.approxTraffic), 0);
+        const totalArticles = trends.reduce((s, t) => s + (t.articles?.length || 0), 0);
+        document.getElementById('s-count').textContent = trends.length;
+        document.getElementById('s-searches').textContent = fmtNum(totalSearches) + '+';
+        document.getElementById('s-articles').textContent = totalArticles;
+
+        // Trend cards
+        const grid = document.getElementById('trend-grid');
+        grid.innerHTML = trends.map((t, i) => {
+            const articles = (t.articles || []).slice(0, 2);
+            const newsHtml = articles.length ? `
+                <div class="news-list">
+                    ${articles.map(a => `
+                        <div class="news-item">
+                            <a href="${esc(a.url)}" target="_blank" rel="noopener">${esc(a.title)}</a>
+                            ${a.source ? `<div class="news-source">${esc(a.source)}</div>` : ''}
+                            ${a.snippet ? `<div class="news-snippet">${esc(a.snippet)}</div>` : ''}
+                        </div>`).join('')}
+                </div>` : '';
+
+            return `
+                <div class="trend-card">
+                    <div class="trend-header">
+                        <span class="trend-rank ${i < 3 ? 'top' : ''}">${i+1}</span>
+                        <div class="trend-title">
+                            <a href="${esc(t.searchUrl)}" target="_blank" rel="noopener">${esc(t.title)}</a>
+                        </div>
+                        ${t.approxTraffic ? `<span class="traffic-badge">${esc(t.approxTraffic)}+</span>` : ''}
+                    </div>
+                    ${newsHtml}
+                </div>`;
+        }).join('');
+
+        // Volume chart — top 10 with known traffic
+        const top10 = trends
+            .filter(t => t.approxTraffic)
+            .sort((a, b) => parseTraffic(b.approxTraffic) - parseTraffic(a.approxTraffic))
+            .slice(0, 10);
+
+        volumeChart.data.labels = top10.map(t => t.title);
+        volumeChart.data.datasets[0].data = top10.map(t => parseTraffic(t.approxTraffic));
+        volumeChart.update();
+
+        // News coverage chart
+        const withNews = trends.filter(t => t.articles?.length > 0).length;
+        newsChart.data.datasets[0].data = [withNews, trends.length - withNews];
+        newsChart.update();
+
+        document.getElementById('last-updated').textContent =
+            'Updated ' + new Date().toLocaleTimeString();
+    }
+
+    // ── SSE + fetch ───────────────────────────────────────────────────────
+    let eventSource = null;
+
+    function connect(geo) {
+        if (eventSource) eventSource.close();
+        eventSource = new EventSource(`/api/google/trends/stream?geo=${geo}`);
+        eventSource.addEventListener('trends', e => render(JSON.parse(e.data)));
+        eventSource.onerror = () => {};
+    }
+
+    function fetchNow(geo) {
+        const btn = document.getElementById('refresh-btn');
+        btn.disabled = true;
+        btn.textContent = 'Refreshing…';
+        fetch(`/api/google/trends?geo=${geo}`)
+            .then(r => r.json())
+            .then(render)
+            .catch(err => console.error(err))
+            .finally(() => { btn.disabled = false; btn.textContent = 'Refresh'; });
+    }
+
+    function getGeo() { return document.getElementById('geo-select').value; }
+
+    document.getElementById('geo-select').addEventListener('change', () => {
+        const geo = getGeo();
+        fetchNow(geo);
+        connect(geo);
+    });
+
+    document.getElementById('refresh-btn').addEventListener('click', () => fetchNow(getGeo()));
+
+    (function init() {
+        const geo = getGeo();
+        fetchNow(geo);
+        connect(geo);
+    })();
+</script>
+</body>
+</html>
