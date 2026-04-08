@@ -15,6 +15,9 @@
         }
 
         header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
             background: #161b22;
             border-bottom: 1px solid #30363d;
             padding: 16px 24px;
@@ -65,6 +68,9 @@
 
         /* ── Toolbar ── */
         .toolbar {
+            position: sticky;
+            top: 57px;
+            z-index: 99;
             background: #161b22;
             border-bottom: 1px solid #30363d;
             padding: 10px 24px;
@@ -103,6 +109,9 @@
 
         /* ── Stats bar ── */
         .stats-bar {
+            position: sticky;
+            top: 113px;
+            z-index: 98;
             background: #161b22;
             border-bottom: 1px solid #30363d;
             padding: 8px 24px;
@@ -239,8 +248,7 @@
     <nav>
         <a href="/">Wikipedia</a>
         <a href="/trends.html">Wiki Trends</a>
-        <a href="/x-trends.html">X Trends</a>
-        <a href="/google-trends.html">Google Trends</a>
+<a href="/google-trends.html">Google Trends</a>
         <a href="/bluesky.html" class="active">Bluesky</a>
     </nav>
 </header>

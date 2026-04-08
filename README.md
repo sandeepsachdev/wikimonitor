@@ -7,7 +7,6 @@ A real-time dashboard that streams live Wikipedia edits, Wikipedia trending topi
 - **Live Wikipedia edits feed** — streams from `stream.wikimedia.org` via Server-Sent Events (SSE), filterable by wiki/language
 - **Wikipedia trending topics** — aggregates the most-edited articles in real time
 - **Google Trends** — polls the Google Trends RSS feed every 15 minutes per region
-- **X / Twitter trends** — polls the X API v2 trends endpoint every 5 minutes (requires Bearer Token)
 - **Bluesky firehose** — connects to the Bluesky Jetstream WebSocket and streams live posts
 
 ## Tech Stack
@@ -31,26 +30,11 @@ A real-time dashboard that streams live Wikipedia edits, Wikipedia trending topi
 
 Open `http://localhost:8080` in your browser.
 
-### With X / Twitter trends
-
-Add your Bearer Token to `src/main/resources/application.properties`:
-
-```properties
-x.api.bearer-token=YOUR_BEARER_TOKEN_HERE
-x.api.default-woeid=1   # 1 = Worldwide
-```
-
 ### With Docker
 
 ```bash
 docker build -t wikipedia-monitor .
 docker run -p 8080:8080 wikipedia-monitor
-```
-
-To pass the X bearer token at runtime:
-
-```bash
-docker run -p 8080:8080 -e X_API_BEARER_TOKEN=your_token wikipedia-monitor
 ```
 
 ## Pages
@@ -59,7 +43,6 @@ docker run -p 8080:8080 -e X_API_BEARER_TOKEN=your_token wikipedia-monitor
 |------|-------------|
 | `/` | Live Wikipedia edits feed |
 | `/trends.html` | Wikipedia trending topics |
-| `/x-trends.html` | X / Twitter trending topics |
 | `/google-trends.html` | Google Trends (by region) |
 | `/bluesky.html` | Live Bluesky posts |
 
@@ -71,7 +54,6 @@ docker run -p 8080:8080 -e X_API_BEARER_TOKEN=your_token wikipedia-monitor
 | `GET /stream/edits?wiki=enwiki` | SSE stream filtered to a specific wiki |
 | `GET /api/trends` | Wikipedia trending articles (SSE) |
 | `GET /api/google-trends` | Google Trends list (SSE, by `?geo=US`) |
-| `GET /api/x-trends` | X trends list (SSE, by `?woeid=1`) |
 | `GET /api/bluesky` | Bluesky post stream (SSE) |
 
 ---
@@ -139,18 +121,7 @@ SSE endpoint (accepts ?geo= param). Create google-trends.html showing trending t
 with expandable news articles.
 ```
 
-### 7. X / Twitter Trends Integration
-
-```
-Create an XTrendsService that calls the X API v2 /2/trends/by/woeid/{woeid} endpoint every
-5 minutes. Read the bearer token from application.properties key x.api.bearer-token. Handle
-429 rate-limit responses gracefully by returning the cached result. Expose an XTrendsController
-with a GET /api/x-trends SSE endpoint (accepts ?woeid= param). Create x-trends.html that
-shows trend name, tweet volume, and a link to search X for that topic. Show a banner if the
-API is not configured.
-```
-
-### 8. Bluesky Firehose Integration
+### 7. Bluesky Firehose Integration
 
 ```
 Create a BlueskyFirehoseService that connects to the Bluesky Jetstream WebSocket at
@@ -163,15 +134,15 @@ endpoint. Create bluesky.html that shows live posts with author DID, post text, 
 and timestamp.
 ```
 
-### 9. Navigation Bar
+### 8. Navigation Bar
 
 ```
-Add a navigation bar to all HTML pages (index.html, trends.html, x-trends.html, google-trends.html,
+Add a navigation bar to all HTML pages (index.html, trends.html, google-trends.html,
 bluesky.html) with links to each page. Style the active page with a highlighted border.
 Use the same dark theme as the rest of the UI.
 ```
 
-### 10. Docker Support
+### 9. Docker Support
 
 ```
 Update the Dockerfile to use a multi-stage build: first stage uses maven:3.9-eclipse-temurin-17
