@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Daily Verse</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #0d1117;
+            color: #e6edf3;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* ── Header ── */
+        header {
+            background: #161b22;
+            border-bottom: 1px solid #30363d;
+            padding: 14px 24px;
+            display: flex;
+            align-items: center;
+            gap: 16px;
+            flex-shrink: 0;
+        }
+
+        header h1 {
+            font-size: 1.2rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        nav { display: flex; gap: 4px; margin-left: auto; }
+        nav a {
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+        nav a:hover { color: #e6edf3; background: #21262d; }
+        nav a.active {
+            color: #e6edf3;
+            background: #21262d;
+            border-color: #30363d;
+        }
+
+        /* ── Refresh button ── */
+        .refresh-btn {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            border-radius: 6px;
+            padding: 6px 14px;
+            font-size: 0.875rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            margin-left: 12px;
+        }
+        .refresh-btn:hover { background: #30363d; color: #e6edf3; }
+
+        /* ── Three panels ── */
+        .panels {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            min-height: 0;
+        }
+
+        .panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 28px 10vw;
+            overflow-y: auto;
+            position: relative;
+            animation: fadeIn 0.5s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(8px); }
+            to   { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ── Panel 1: Verse ── */
+        .panel-verse {
+            background: #0d1117;
+            border-bottom: 1px solid #21262d;
+        }
+
+        .panel-verse .label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #f0883e;
+            margin-bottom: 14px;
+        }
+
+        .panel-verse .verse-text {
+            font-size: clamp(1.15rem, 2.2vw, 1.55rem);
+            font-style: italic;
+            line-height: 1.65;
+            color: #e6edf3;
+            max-width: 820px;
+            position: relative;
+            padding-left: 28px;
+        }
+
+        .panel-verse .verse-text::before {
+            content: '\201C';
+            position: absolute;
+            left: -4px;
+            top: -10px;
+            font-size: 4rem;
+            color: #f0883e;
+            opacity: 0.35;
+            font-style: normal;
+            line-height: 1;
+        }
+
+        .panel-verse .verse-ref {
+            margin-top: 14px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: #f0883e;
+            letter-spacing: 0.02em;
+        }
+
+        /* ── Panel 2: Insight ── */
+        .panel-insight {
+            background: #161b22;
+            border-bottom: 1px solid #21262d;
+        }
+
+        .panel-insight .label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #58a6ff;
+            margin-bottom: 14px;
+        }
+
+        .panel-insight .quote-text {
+            font-size: clamp(0.95rem, 1.6vw, 1.15rem);
+            line-height: 1.7;
+            color: #c9d1d9;
+            max-width: 820px;
+            font-style: italic;
+        }
+
+        .panel-insight .attribution {
+            margin-top: 14px;
+            font-size: 0.875rem;
+            color: #58a6ff;
+            font-style: normal;
+            font-weight: 500;
+        }
+
+        .panel-insight .attribution .work {
+            color: #8b949e;
+            font-style: italic;
+            font-weight: 400;
+        }
+
+        /* ── Panel 3: Questions ── */
+        .panel-questions {
+            background: #0d1117;
+        }
+
+        .panel-questions .label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            color: #3fb950;
+            margin-bottom: 16px;
+        }
+
+        .questions-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            max-width: 820px;
+        }
+
+        .questions-list li {
+            display: flex;
+            gap: 14px;
+            align-items: flex-start;
+            background: #161b22;
+            border: 1px solid #21262d;
+            border-radius: 8px;
+            padding: 14px 16px;
+            font-size: clamp(0.875rem, 1.4vw, 1rem);
+            line-height: 1.55;
+            color: #c9d1d9;
+            transition: border-color 0.15s;
+        }
+
+        .questions-list li:hover { border-color: #3fb950; }
+
+        .questions-list .q-num {
+            flex-shrink: 0;
+            width: 24px;
+            height: 24px;
+            border-radius: 50%;
+            background: #1a4a1e;
+            border: 1px solid #2ea043;
+            color: #3fb950;
+            font-size: 0.75rem;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 1px;
+        }
+    </style>
+</head>
+<body>
+
+<header>
+    <h1>&#9997; Daily Verse</h1>
+    <nav>
+        <a href="/">News</a>
+        <a href="/google-trends.html">Google Trends</a>
+        <a href="/trending.html">Trending</a>
+        <a href="/wikipedia.html">Live Feed</a>
+        <a href="/bluesky.html">Bluesky</a>
+        <a href="/verse.html" class="active">Daily Verse</a>
+    </nav>
+    <button class="refresh-btn" id="refresh-btn">&#8635; New Verse</button>
+</header>
+
+<div class="panels">
+    <!-- Panel 1: Verse -->
+    <div class="panel panel-verse">
+        <div class="label">&#128214; Today's Challenge</div>
+        <div class="verse-text" id="verse-text"></div>
+        <div class="verse-ref" id="verse-ref"></div>
+    </div>
+
+    <!-- Panel 2: Insight -->
+    <div class="panel panel-insight">
+        <div class="label">&#128161; Insight</div>
+        <div class="quote-text" id="quote-text"></div>
+        <div class="attribution" id="attribution"></div>
+    </div>
+
+    <!-- Panel 3: Questions -->
+    <div class="panel panel-questions">
+        <div class="label">&#9997; Apply It</div>
+        <ol class="questions-list" id="questions-list"></ol>
+    </div>
+</div>
+
+<script>
+    const VERSES = [
+        {
+            reference: "Matthew 5:44",
+            text: "But I say to you, Love your enemies and pray for those who persecute you, so that you may be sons of your Father who is in heaven.",
+            version: "ESV",
+            insight: {
+                author: "C.S. Lewis",
+                work: "Mere Christianity",
+                quote: "Do not waste time bothering whether you 'love' your neighbour; act as if you did. As soon as we do this we find one of the great secrets. When you are behaving as if you loved someone, you will presently come to love him. If you injure someone you dislike, you will find yourself disliking him more. The rule for all of us is perfectly simple. Do not waste time wondering if you love your neighbour. Act as if you do, and you will discover you do."
+            },
+            questions: [
+                "Who in your life is currently the hardest person to love, and what one concrete act of kindness could you offer them this week?",
+                "How does praying for those who hurt you change your own heart — even before anything changes in them?",
+                "In what areas of your life do you draw an invisible line between who deserves your kindness and who does not?"
+            ]
+        },
+        {
+            reference: "Luke 9:23",
+            text: "And he said to all, 'If anyone would come after me, let him deny himself and take up his cross daily and follow me.'",
+            version: "ESV",
+            insight: {
+                author: "Oswald Chambers",
+                work: "My Utmost for His Highest",
+                quote: "The cross is not a thing to be carried occasionally — it is to be taken up daily. The cross means death: death to your right to yourself, to your own opinions, your own ambitions. When Jesus says 'deny yourself,' he is not talking about giving up chocolate. He is talking about surrendering the throne of your own life. Most of us want a Christianity that lets us keep the throne and invites Jesus in as a helpful advisor."
+            },
+            questions: [
+                "What specific area of your life are you still holding back from Christ — where do you resist daily surrender?",
+                "What does taking up your cross look like on an ordinary Tuesday, not just in a moment of crisis?",
+                "How does the word 'daily' in this verse challenge the way you understand what it means to be a Christian?"
+            ]
+        },
+        {
+            reference: "Romans 12:2",
+            text: "Do not be conformed to this world, but be transformed by the renewal of your mind, that by testing you may discern what is the will of God, what is good and acceptable and perfect.",
+            version: "ESV",
+            insight: {
+                author: "Dallas Willard",
+                work: "Renovation of the Heart",
+                quote: "The transformation of the mind is not a matter of willpower but of what you put before your mind. You cannot stop thinking what you are thinking by trying not to think it. You must replace it with something more powerful. The battle for the soul is fought on the battlefield of attention. What captures your sustained attention shapes what you become — and most of us have outsourced that attention to the world without a second thought."
+            },
+            questions: [
+                "What are the three things you consume most — media, conversation, entertainment — and are they conforming or transforming you?",
+                "What does an intentional renewal of the mind actually look like in your daily routine right now?",
+                "Where have you been drifting with the culture without noticing, and what would it cost you to swim against it?"
+            ]
+        },
+        {
+            reference: "James 2:17",
+            text: "So also faith by itself, if it does not have works, is dead.",
+            version: "ESV",
+            insight: {
+                author: "Dietrich Bonhoeffer",
+                work: "The Cost of Discipleship",
+                quote: "Cheap grace is grace without discipleship, grace without the cross, grace without Jesus Christ living and incarnate. It is grace without a price, without cost. Costly grace confronts us as a gracious call to follow Jesus. It is costly because it costs a man his life, and it is grace because it gives a man the only true life. Above all, it is costly because it cost God the life of his Son."
+            },
+            questions: [
+                "What is one belief you hold deeply that has produced almost no visible change in your actual behaviour?",
+                "Where is there a gap between what you say you believe and how you actually spend your time and money?",
+                "Who in your life needs not your theology but your hands and feet — and what will you do about it this week?"
+            ]
+        },
+        {
+            reference: "Micah 6:8",
+            text: "He has told you, O man, what is good; and what does the Lord require of you but to do justice, and to love kindness, and to walk humbly with your God?",
+            version: "ESV",
+            insight: {
+                author: "N.T. Wright",
+                work: "Simply Christian",
+                quote: "Justice, kindness, and humility are not three separate programs you can choose between. They are three dimensions of a single life. You cannot be genuinely just without humility — pride always warps justice. You cannot love mercy without doing justice — sentiment without accountability is mere sentimentality. And all of it requires actually walking with God, not just agreeing with ideas about him. The key word is 'walk' — it is a practice, not a position."
+            },
+            questions: [
+                "Of the three requirements — justice, mercy, humility — which do you find most natural and which most difficult? Why?",
+                "What injustice in your neighbourhood, workplace, or city is God calling you to stop walking past?",
+                "What would it look like in practice to walk humbly in a specific conversation you are having this week?"
+            ]
+        },
+        {
+            reference: "Philippians 4:11–12",
+            text: "Not that I am speaking of being in need, for I have learned, in whatever situation I am, to be content. I know how to be brought low, and I know how to abound. In any and every circumstance, I have learned the secret of facing plenty and hunger, abundance and need.",
+            version: "ESV",
+            insight: {
+                author: "Hudson Taylor",
+                work: "Biography by Dr. and Mrs. Howard Taylor",
+                quote: "The secret is Christ in me — not me in a different set of circumstances. Paul's word 'learned' is the most important word in this passage. Contentment is not a personality trait. It is a spiritual discipline acquired through suffering. You cannot learn it in a library or a comfortable church. You can only learn it by having everything taken away and discovering that Christ remains — and that Christ is enough."
+            },
+            questions: [
+                "What circumstance are you currently convinced would finally make you content — and what does that reveal about where your trust actually sits?",
+                "Paul says contentment is learned. What has suffering taught you about contentment that prosperity never could?",
+                "Where in your life are you abounding right now, and how are you stewarding that abundance for others?"
+            ]
+        },
+        {
+            reference: "Hebrews 11:1",
+            text: "Now faith is the assurance of things hoped for, the conviction of things not seen.",
+            version: "ESV",
+            insight: {
+                author: "Charles Spurgeon",
+                work: "Metropolitan Tabernacle Sermons",
+                quote: "Faith is not believing in spite of evidence — that is credulity. Faith is acting on the best evidence you have, trusting a Person you have come to know, and walking forward into what you cannot yet see. Abraham did not know where he was going. He went anyway. That is not blindness. That is trust built on a track record. The assurance the text speaks of is not emotional certainty — it is a confidence grounded in the character of God himself."
+            },
+            questions: [
+                "What is the thing you are hoping for most deeply right now — and is your faith in that thing rooted in God's promises or your own plans?",
+                "Where are you being called to take a step of faith before you can see the outcome?",
+                "How does the phrase 'conviction of things not seen' actually challenge the way you make daily decisions?"
+            ]
+        },
+        {
+            reference: "John 15:5",
+            text: "I am the vine; you are the branches. Whoever abides in me and I in him, he it is that bears much fruit, for apart from me you can do nothing.",
+            version: "ESV",
+            insight: {
+                author: "Andrew Murray",
+                work: "Abide in Christ",
+                quote: "The branch has no life of its own. It does not strain and push and try to produce fruit by effort. It simply stays — it abides. And the life of the vine, which the branch did not earn and cannot manufacture, flows through it and produces what the branch could never produce alone. The command is not 'try harder.' The command is 'stay.' Most Christians have inverted the gospel: they try to produce fruit in order to stay connected. Jesus says stay connected and fruit is the natural result."
+            },
+            questions: [
+                "What does abiding in Christ actually look like in your schedule this week — not as a metaphor but as a specific practice?",
+                "Where are you currently straining to produce fruit in your own strength rather than staying connected to the vine?",
+                "Christ says apart from him you can do nothing. How seriously do you actually live as though that were literally true?"
+            ]
+        },
+        {
+            reference: "Matthew 6:24",
+            text: "No one can serve two masters, for either he will hate the one and love the other, or he will be devoted to the one and despise the other. You cannot serve God and money.",
+            version: "ESV",
+            insight: {
+                author: "Søren Kierkegaard",
+                work: "Purity of Heart Is to Will One Thing",
+                quote: "The double-minded man wants God and the world simultaneously. He wants to be forgiven and to hold onto his sin. He wants to be holy and to be comfortable. He wants the promises of the gospel and the pleasures of the age. Jesus does not leave this door open. He does not say it is difficult to serve both. He says it is impossible. The first act of genuine discipleship is choosing, clearly and without evasion, which throne your life orbits around."
+            },
+            questions: [
+                "What evidence in your bank account and calendar would tell an outside observer who your real master is?",
+                "Where in your life do you try to negotiate a compromise between God's claim and something else you want to keep?",
+                "What would it look like to hold money more loosely in one specific, practical way this month?"
+            ]
+        },
+        {
+            reference: "1 Corinthians 13:4–7",
+            text: "Love is patient and kind; love does not envy or boast; it is not arrogant or rude. It does not insist on its own way; it is not irritable or resentful; it does not rejoice at wrongdoing, but rejoices with the truth. Love bears all things, believes all things, hopes all things, endures all things.",
+            version: "ESV",
+            insight: {
+                author: "G.K. Chesterton",
+                work: "Heretics",
+                quote: "The Bible tells us to love our neighbours, and also to love our enemies — probably because they are generally the same people. Love in Paul's definition is not a feeling that happens to you. It is a choice that costs you. Notice the verbs: bears, believes, hopes, endures. These are not passive emotional states. They are acts of the will sustained against contrary evidence, contrary feelings, and contrary circumstances. What Paul describes is not romance. It is warfare."
+            },
+            questions: [
+                "Replace the word 'love' in these verses with your own name — which quality is most obviously absent in how you treat others?",
+                "With whom in your life do you find it hardest to 'not insist on your own way,' and what would change if you stopped?",
+                "What would loving one specific person well actually cost you this week — and are you willing to pay it?"
+            ]
+        },
+        {
+            reference: "Romans 8:28",
+            text: "And we know that for those who love God all things work together for good, for those who are called according to his purpose.",
+            version: "ESV",
+            insight: {
+                author: "Charles Spurgeon",
+                work: "Morning and Evening",
+                quote: "Note carefully that it does not say all things are good — it says all things work together for good. Poison is not good, but the antidote it makes necessary may save your life. A single dark thread is not beautiful — but woven with others it makes the pattern. You cannot see the pattern from the back of the tapestry. You must trust the Weaver, even when all you can see is knots and loose ends and colours that seem to clash with everything around them."
+            },
+            questions: [
+                "What situation in your life right now is hardest to believe God is working for your good — and what would trusting him in it actually look like?",
+                "How does this promise depend on the condition 'those who love God' — and what does that phrase ask of you personally?",
+                "Can you look back at a past difficulty and see how God used it for good? What does that history teach you about your current struggle?"
+            ]
+        },
+        {
+            reference: "Proverbs 3:5–6",
+            text: "Trust in the Lord with all your heart, and do not lean on your own understanding. In all your ways acknowledge him, and he will make straight your paths.",
+            version: "ESV",
+            insight: {
+                author: "Andrew Murray",
+                work: "Absolute Surrender",
+                quote: "The great danger of Christian living is partial trust. We trust God with our souls and run our lives ourselves. We trust him with eternity and manage time on our own terms. We trust him with the big decisions and ignore him in the small ones. But the text says 'with all your heart.' It is the totality of surrender that releases the totality of guidance. Half-trust gets half a result, and we tend to blame God for the crooked path that our own understanding produced."
+            },
+            questions: [
+                "In which decision you are currently facing are you leaning most heavily on your own understanding rather than seeking God's?",
+                "What does acknowledging God in all your ways look like for the mundane, ordinary parts of your day — not just the obviously spiritual moments?",
+                "What would you decide differently this week if you genuinely trusted God's wisdom over your own instinct?"
+            ]
+        },
+        {
+            reference: "Matthew 7:13–14",
+            text: "Enter by the narrow gate. For the gate is wide and the way is easy that leads to destruction, and those who enter by it are many. For the gate is narrow and the way is hard that leads to life, and those who find it are few.",
+            version: "ESV",
+            insight: {
+                author: "C.S. Lewis",
+                work: "The Problem of Pain",
+                quote: "We are not living in a world where all roads are radii of a circle and where all, if followed long enough, will therefore draw gradually nearer and finally meet at the centre. Rather I think they are like the different roads out of a city, and that some lead to good destinations and some do not. The direction you are heading matters eternally. The wide road is wide precisely because it requires no commitment, no self-denial, no particular direction at all."
+            },
+            questions: [
+                "In what area of your life are you currently choosing the wide, easy road because the narrow way feels too costly?",
+                "What does 'the way is hard' suggest about the normal experience of following Christ — and how does that reframe your current difficulties?",
+                "What is one thing you would have to give up to enter more fully through the narrow gate in your current season of life?"
+            ]
+        },
+        {
+            reference: "Isaiah 40:31",
+            text: "But they who wait for the Lord shall renew their strength; they shall mount up with wings like eagles; they shall run and not be weary; they shall walk and not faint.",
+            version: "ESV",
+            insight: {
+                author: "Elisabeth Elliot",
+                work: "Suffering Is Never for Nothing",
+                quote: "Waiting on God is not passive resignation. It is an active, intentional, costly discipline. It is the refusal to act in your own timing when God has not yet acted in his. It is the choice to hold still when every instinct tells you to run. The strength that comes from waiting is not your strength replenished — it is an entirely different kind of strength. It is not what you had before, restored. It is something you could never have manufactured yourself."
+            },
+            questions: [
+                "What are you waiting on God for right now, and is your waiting marked by trust or by anxiety?",
+                "Where are you currently moving ahead of God's timing because waiting feels too passive or too costly?",
+                "What would it look like to actively wait — to use this season of waiting as intentional preparation rather than frustrating delay?"
+            ]
+        },
+        {
+            reference: "2 Corinthians 12:9",
+            text: "But he said to me, 'My grace is sufficient for you, for my power is made perfect in weakness.' Therefore I will boast all the more gladly of my weaknesses, so that the power of Christ may rest upon me.",
+            version: "ESV",
+            insight: {
+                author: "Joni Eareckson Tada",
+                work: "A Place of Healing",
+                quote: "I have learned that weakness is not the obstacle to experiencing God's power — it is the very condition for it. When I am strong, I tend to credit myself. When I am brought to the end of my resources, I finally stop blocking the view and God becomes visible. The thorn in the flesh was not removed because its purpose was not Paul's comfort. Its purpose was Paul's transformation — and through that transformation, the display of a power that could not possibly be explained by anything in Paul himself."
+            },
+            questions: [
+                "What is your current 'thorn' — the weakness or limitation you most wish God would remove — and what if he is using it on purpose?",
+                "Where do you find yourself performing strength rather than admitting weakness, even to God?",
+                "What would it look like to boast in your weaknesses this week — to stop hiding them and instead invite God's power into them?"
+            ]
+        }
+    ];
+
+    function pick() {
+        return VERSES[Math.floor(Math.random() * VERSES.length)];
+    }
+
+    function render(entry) {
+        // Verse panel
+        document.getElementById('verse-text').textContent = entry.text;
+        document.getElementById('verse-ref').textContent = `— ${entry.reference}  (${entry.version})`;
+
+        // Insight panel
+        document.getElementById('quote-text').textContent = entry.insight.quote;
+        const attr = document.getElementById('attribution');
+        attr.innerHTML = `${entry.insight.author} <span class="work">— ${entry.insight.work}</span>`;
+
+        // Questions panel
+        const list = document.getElementById('questions-list');
+        list.innerHTML = '';
+        entry.questions.forEach((q, i) => {
+            const li = document.createElement('li');
+            li.innerHTML = `<span class="q-num">${i + 1}</span><span>${q}</span>`;
+            list.appendChild(li);
+        });
+
+        // Animate panels in
+        document.querySelectorAll('.panel').forEach((p, i) => {
+            p.style.animation = 'none';
+            p.offsetHeight; // reflow
+            p.style.animation = `fadeIn 0.4s ease-out ${i * 0.1}s both`;
+        });
+    }
+
+    document.getElementById('refresh-btn').addEventListener('click', () => render(pick()));
+
+    render(pick());
+</script>
+</body>
+</html>
