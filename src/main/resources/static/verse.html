@@ -11,10 +11,6 @@
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: #0d1117;
             color: #e6edf3;
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
         }
 
         /* ── Header ── */
@@ -68,20 +64,11 @@
         .refresh-btn:hover { background: #30363d; color: #e6edf3; }
 
         /* ── Three panels ── */
-        .panels {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            min-height: 0;
-        }
-
         .panel {
-            flex: 1;
             display: flex;
             flex-direction: column;
             justify-content: center;
-            padding: 28px 10vw;
-            overflow-y: auto;
+            padding: 48px 10vw;
             position: relative;
             animation: fadeIn 0.5s ease-out;
         }
@@ -243,26 +230,24 @@
     <button class="refresh-btn" id="refresh-btn">&#8635; New Verse</button>
 </header>
 
-<div class="panels">
-    <!-- Panel 1: Verse -->
-    <div class="panel panel-verse">
+<!-- Panel 1: Verse -->
+<div class="panel panel-verse">
         <div class="label">&#128214; Today's Challenge</div>
         <div class="verse-text" id="verse-text"></div>
         <div class="verse-ref" id="verse-ref"></div>
     </div>
 
-    <!-- Panel 2: Insight -->
-    <div class="panel panel-insight">
-        <div class="label">&#128161; Insight</div>
-        <div class="quote-text" id="quote-text"></div>
-        <div class="attribution" id="attribution"></div>
-    </div>
+<!-- Panel 2: Insight -->
+<div class="panel panel-insight">
+    <div class="label">&#128161; Insight</div>
+    <div class="quote-text" id="quote-text"></div>
+    <div class="attribution" id="attribution"></div>
+</div>
 
-    <!-- Panel 3: Questions -->
-    <div class="panel panel-questions">
-        <div class="label">&#9997; Apply It</div>
-        <ol class="questions-list" id="questions-list"></ol>
-    </div>
+<!-- Panel 3: Questions -->
+<div class="panel panel-questions">
+    <div class="label">&#9997; Apply It</div>
+    <ol class="questions-list" id="questions-list"></ol>
 </div>
 
 <script>
