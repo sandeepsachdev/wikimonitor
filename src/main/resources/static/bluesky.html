@@ -428,9 +428,9 @@
         feed.appendChild(card);   // new posts go to the BOTTOM
         trimOldCards();
 
-        // Smoothly scroll to the new card if the user hasn't scrolled away
+        // Scroll to bottom if user hasn't scrolled away (instant to avoid queued animations)
         if (autoScroll) {
-            card.scrollIntoView({ behavior: 'smooth', block: 'end' });
+            card.scrollIntoView({ behavior: 'instant', block: 'end' });
         }
 
         updateStats();
@@ -536,7 +536,17 @@
         autoScroll = distFromBottom < 120;
     });
 
-    setInterval(updateStats, 1000);
+    const statsTimer = setInterval(updateStats, 1000);
+
+    // ── Cleanup on navigation / tab hide ──────────────────────────────────────
+    function cleanup() {
+        clearInterval(dripTimer);
+        clearInterval(statsTimer);
+        if (eventSource) { eventSource.close(); eventSource = null; }
+    }
+    window.addEventListener('beforeunload', cleanup);
+    document.addEventListener('visibilitychange', () => { if (document.hidden) queue = []; });
+
     connect();
     startDrip();
 </script>

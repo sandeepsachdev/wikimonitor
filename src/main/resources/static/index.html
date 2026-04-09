@@ -566,12 +566,19 @@
     });
 
     // Update time-ago labels every minute
-    setInterval(() => {
+    const timeAgoTimer = setInterval(() => {
         grid.querySelectorAll('.card-time').forEach((el, i) => {
             const item = allItems.filter(matchesFilter)[i];
             if (item) el.textContent = timeAgo(item.pubDate);
         });
     }, 60000);
+
+    // ── Cleanup on navigation ─────────────────────────────────────────────────
+    window.addEventListener('beforeunload', () => {
+        clearTimeout(batchTimer);
+        clearInterval(timeAgoTimer);
+        if (eventSource) { eventSource.close(); eventSource = null; }
+    });
 
     connect();
 </script>

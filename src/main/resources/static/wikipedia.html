@@ -293,8 +293,8 @@
 </div>
 
 <script>
-    const MAX_CARDS  = 200;
-    const MAX_QUEUE  = 500;
+    const MAX_CARDS  = 150;
+    const MAX_QUEUE  = 100;
 
     const feed        = document.getElementById('feed');
     const statusDot   = document.getElementById('status-dot');
@@ -310,6 +310,7 @@
     let queue = [];
     let dripTimer = null;
     let dripInterval = parseInt(speedSelect.value, 10);
+    let cardCount = 0;
 
     let totalEdits = 0, newPages = 0, botEdits = 0;
     let recentTimestamps = [];
@@ -393,28 +394,25 @@
         document.getElementById('empty-state')?.remove();
         const card = createCard(edit);
         feed.insertBefore(card, feed.firstChild);
+        cardCount++;
 
-        const cards = feed.querySelectorAll('.edit-card');
-        if (cards.length > MAX_CARDS) {
-            for (let i = MAX_CARDS; i < cards.length; i++) cards[i].remove();
-            if (!feed.querySelector('.overflow-notice')) {
-                const notice = document.createElement('div');
-                notice.className = 'overflow-notice';
-                notice.textContent = `Showing latest ${MAX_CARDS} edits`;
-                feed.appendChild(notice);
-            }
+        // Trim oldest card from the bottom (no querySelectorAll needed)
+        if (cardCount > MAX_CARDS) {
+            // Walk backwards to find oldest edit-card
+            let last = feed.lastElementChild;
+            while (last && !last.classList.contains('edit-card')) last = last.previousElementSibling;
+            if (last) { last.remove(); cardCount--; }
         }
-        updateStats();
     }
 
     function startDrip() {
         clearInterval(dripTimer);
-        if (dripInterval === 0) {
-            // Instant mode: flush queue each tick via a fast interval
-            dripTimer = setInterval(() => { while (queue.length) drip(); }, 50);
-        } else {
-            dripTimer = setInterval(drip, dripInterval);
-        }
+        // In fast/instant mode process up to 5 per tick to avoid jamming the main thread
+        const interval  = dripInterval === 0 ? 50 : dripInterval;
+        const perTick   = dripInterval === 0 ? 5  : 1;
+        dripTimer = setInterval(() => {
+            for (let i = 0; i < perTick; i++) drip();
+        }, interval);
     }
 
     // ── Enqueue incoming edit ────────────────────────────────────────────────
@@ -446,6 +444,7 @@
 
     function resetFeed() {
         queue = [];
+        cardCount = 0;
         feed.innerHTML = '';
         totalEdits = 0; newPages = 0; botEdits = 0; recentTimestamps = [];
         updateStats();
@@ -469,7 +468,17 @@
         startDrip();
     });
 
-    setInterval(updateStats, 5000);
+    const statsTimer = setInterval(updateStats, 5000);
+
+    // ── Cleanup on navigation / tab hide ──────────────────────────────────────
+    function cleanup() {
+        clearInterval(dripTimer);
+        clearInterval(statsTimer);
+        if (eventSource) { eventSource.close(); eventSource = null; }
+    }
+    window.addEventListener('beforeunload', cleanup);
+    // Drop buffered queue when tab goes hidden so it doesn't flood on return
+    document.addEventListener('visibilitychange', () => { if (document.hidden) queue = []; });
 
     connect();
     startDrip();

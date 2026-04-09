@@ -472,6 +472,10 @@
 
     geoSelect.addEventListener('change', () => connect(geoSelect.value));
 
+    window.addEventListener('beforeunload', () => {
+        if (eventSource) { eventSource.close(); eventSource = null; }
+    });
+
     connect(geoSelect.value);
 </script>
 </body>

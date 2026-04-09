@@ -487,6 +487,10 @@
 
     document.getElementById('refresh-btn').addEventListener('click', () => fetchNow(getGeo()));
 
+    window.addEventListener('beforeunload', () => {
+        if (eventSource) { eventSource.close(); eventSource = null; }
+    });
+
     (function init() {
         const geo = getGeo();
         fetchNow(geo);
