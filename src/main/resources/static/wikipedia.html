@@ -47,11 +47,27 @@
             50% { opacity: 0.4; }
         }
 
+        nav { display: flex; gap: 4px; margin-left: auto; }
+        nav a {
+            color: #8b949e;
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 6px 14px;
+            border-radius: 6px;
+            border: 1px solid transparent;
+            transition: all 0.15s;
+        }
+        nav a:hover { color: #e6edf3; background: #21262d; }
+        nav a.active {
+            color: #e6edf3;
+            background: #21262d;
+            border-color: #30363d;
+        }
+
         .controls {
             display: flex;
             gap: 10px;
             align-items: center;
-            margin-left: auto;
             flex-wrap: wrap;
         }
 
@@ -219,12 +235,12 @@
         <div class="dot" id="status-dot"></div>
         Wikipedia Live Edits
     </h1>
-    <nav style="display:flex;gap:4px;margin-right:12px;">
-        <a href="/" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">News</a>
-        <a href="/google-trends.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Google Trends</a>
-        <a href="/trending.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Trending</a>
-        <a href="/wikipedia.html" style="color:#e6edf3;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid #30363d;background:#21262d;">Live Feed</a>
-        <a href="/bluesky.html" style="color:#8b949e;text-decoration:none;font-size:.875rem;padding:6px 14px;border-radius:6px;border:1px solid transparent;transition:all .15s;">Bluesky</a>
+    <nav>
+        <a href="/">News</a>
+        <a href="/google-trends.html">Google Trends</a>
+        <a href="/trending.html">Trending</a>
+        <a href="/wikipedia.html" class="active">Live Feed</a>
+        <a href="/bluesky.html">Bluesky</a>
     </nav>
     <div class="controls">
         <select id="wiki-filter">
