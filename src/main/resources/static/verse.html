@@ -63,25 +63,27 @@
         }
         .refresh-btn:hover { background: #30363d; color: #e6edf3; }
 
-        /* ── Three panels ── */
-        .panel {
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            padding: 48px 10vw;
-            position: relative;
-            animation: fadeIn 0.5s ease-out;
-        }
-
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(8px); }
             to   { opacity: 1; transform: translateY(0); }
         }
 
+        /* ── Top row: verse left, insight right ── */
+        .top-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            border-bottom: 1px solid #21262d;
+            animation: fadeIn 0.4s ease-out both;
+        }
+
+        .panel {
+            padding: 48px 5vw;
+        }
+
         /* ── Panel 1: Verse ── */
         .panel-verse {
             background: #0d1117;
-            border-bottom: 1px solid #21262d;
+            border-right: 1px solid #21262d;
         }
 
         .panel-verse .label {
@@ -94,13 +96,12 @@
         }
 
         .panel-verse .verse-text {
-            font-size: clamp(1.15rem, 2.2vw, 1.55rem);
+            font-size: clamp(1.05rem, 1.8vw, 1.45rem);
             font-style: italic;
-            line-height: 1.65;
+            line-height: 1.7;
             color: #e6edf3;
-            max-width: 820px;
             position: relative;
-            padding-left: 28px;
+            padding-left: 24px;
         }
 
         .panel-verse .verse-text::before {
@@ -116,7 +117,7 @@
         }
 
         .panel-verse .verse-ref {
-            margin-top: 14px;
+            margin-top: 16px;
             font-size: 0.95rem;
             font-weight: 600;
             color: #f0883e;
@@ -126,7 +127,6 @@
         /* ── Panel 2: Insight ── */
         .panel-insight {
             background: #161b22;
-            border-bottom: 1px solid #21262d;
         }
 
         .panel-insight .label {
@@ -139,15 +139,14 @@
         }
 
         .panel-insight .quote-text {
-            font-size: clamp(0.95rem, 1.6vw, 1.15rem);
-            line-height: 1.7;
+            font-size: clamp(0.9rem, 1.4vw, 1.1rem);
+            line-height: 1.75;
             color: #c9d1d9;
-            max-width: 820px;
             font-style: italic;
         }
 
         .panel-insight .attribution {
-            margin-top: 14px;
+            margin-top: 16px;
             font-size: 0.875rem;
             color: #58a6ff;
             font-style: normal;
@@ -163,6 +162,8 @@
         /* ── Panel 3: Questions ── */
         .panel-questions {
             background: #0d1117;
+            padding: 40px 5vw;
+            animation: fadeIn 0.4s ease-out 0.15s both;
         }
 
         .panel-questions .label {
@@ -176,10 +177,15 @@
 
         .questions-list {
             list-style: none;
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            max-width: 820px;
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+        }
+
+        @media (max-width: 900px) {
+            .top-row { grid-template-columns: 1fr; }
+            .panel-verse { border-right: none; border-bottom: 1px solid #21262d; }
+            .questions-list { grid-template-columns: 1fr; }
         }
 
         .questions-list li {
@@ -189,8 +195,8 @@
             background: #161b22;
             border: 1px solid #21262d;
             border-radius: 8px;
-            padding: 14px 16px;
-            font-size: clamp(0.875rem, 1.4vw, 1rem);
+            padding: 16px;
+            font-size: clamp(0.875rem, 1.2vw, 1rem);
             line-height: 1.55;
             color: #c9d1d9;
             transition: border-color 0.15s;
@@ -230,18 +236,20 @@
     <button class="refresh-btn" id="refresh-btn">&#8635; New Verse</button>
 </header>
 
-<!-- Panel 1: Verse -->
-<div class="panel panel-verse">
+<div class="top-row">
+    <!-- Panel 1: Verse -->
+    <div class="panel panel-verse">
         <div class="label">&#128214; Today's Challenge</div>
         <div class="verse-text" id="verse-text"></div>
         <div class="verse-ref" id="verse-ref"></div>
     </div>
 
-<!-- Panel 2: Insight -->
-<div class="panel panel-insight">
-    <div class="label">&#128161; Insight</div>
-    <div class="quote-text" id="quote-text"></div>
-    <div class="attribution" id="attribution"></div>
+    <!-- Panel 2: Insight -->
+    <div class="panel panel-insight">
+        <div class="label">&#128161; Insight</div>
+        <div class="quote-text" id="quote-text"></div>
+        <div class="attribution" id="attribution"></div>
+    </div>
 </div>
 
 <!-- Panel 3: Questions -->
@@ -502,11 +510,11 @@
             list.appendChild(li);
         });
 
-        // Animate panels in
-        document.querySelectorAll('.panel').forEach((p, i) => {
-            p.style.animation = 'none';
-            p.offsetHeight; // reflow
-            p.style.animation = `fadeIn 0.4s ease-out ${i * 0.1}s both`;
+        // Animate top row and questions in
+        [document.querySelector('.top-row'), document.querySelector('.panel-questions')].forEach((el, i) => {
+            el.style.animation = 'none';
+            el.offsetHeight; // reflow
+            el.style.animation = `fadeIn 0.4s ease-out ${i * 0.15}s both`;
         });
     }
 

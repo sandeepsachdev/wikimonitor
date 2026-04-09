@@ -64,14 +64,7 @@
             border-color: #30363d;
         }
 
-        .controls {
-            display: flex;
-            gap: 10px;
-            align-items: center;
-            flex-wrap: wrap;
-        }
-
-        select, button, input {
+select, button, input {
             background: #21262d;
             border: 1px solid #30363d;
             color: #e6edf3;
@@ -243,7 +236,15 @@
         <a href="/bluesky.html">Bluesky</a>
         <a href="/verse.html">Daily Verse</a>
     </nav>
-    <div class="controls">
+</header>
+
+<div class="stats-bar">
+    <div class="stat">Total edits: <span id="stat-total">0</span></div>
+    <div class="stat">Edits/min: <span id="stat-rate">0</span></div>
+    <div class="stat">New pages: <span id="stat-new">0</span></div>
+    <div class="stat">Bot edits: <span id="stat-bots">0</span></div>
+    <div class="stat">Status: <span id="stat-status">Connecting…</span></div>
+    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
         <select id="wiki-filter">
             <option value="">All wikis</option>
             <option value="enwiki" selected>English (enwiki)</option>
@@ -258,21 +259,6 @@
             <option value="commonswiki">Wikimedia Commons</option>
             <option value="wikidatawiki">Wikidata</option>
         </select>
-        <label style="font-size:0.85rem; display:flex; align-items:center; gap:6px; cursor:pointer;">
-            <input type="checkbox" id="hide-bots" checked style="padding:0; width:14px; height:14px;"> Hide bots
-        </label>
-        <button class="secondary" id="pause-btn">Pause</button>
-        <button class="danger" id="clear-btn">Clear</button>
-    </div>
-</header>
-
-<div class="stats-bar">
-    <div class="stat">Total edits: <span id="stat-total">0</span></div>
-    <div class="stat">Edits/min: <span id="stat-rate">0</span></div>
-    <div class="stat">New pages: <span id="stat-new">0</span></div>
-    <div class="stat">Bot edits: <span id="stat-bots">0</span></div>
-    <div class="stat">Status: <span id="stat-status">Connecting…</span></div>
-    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;">
         <select id="type-filter">
             <option value="">All updates</option>
             <option value="new">New pages only</option>
@@ -283,6 +269,11 @@
             <option value="400">Fast</option>
             <option value="0">Instant</option>
         </select>
+        <label style="font-size:0.8rem; display:flex; align-items:center; gap:6px; cursor:pointer; white-space:nowrap;">
+            <input type="checkbox" id="hide-bots" checked style="padding:0; width:14px; height:14px;"> Hide bots
+        </label>
+        <button class="secondary" id="pause-btn">Pause</button>
+        <button class="danger" id="clear-btn">Clear</button>
     </div>
 </div>
 
