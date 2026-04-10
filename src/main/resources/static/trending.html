@@ -36,7 +36,7 @@
             gap: 10px;
         }
 
-        nav { display: flex; gap: 4px; margin-left: auto; flex-wrap: wrap; }
+        nav { display: flex; gap: 4px; margin-left: auto; flex-shrink: 0; }
         nav a {
             color: #8b949e;
             text-decoration: none;
@@ -276,6 +276,12 @@
         .dot-pulse span:nth-child(4) { animation-delay: 0.6s; background: #34A853; }
         @keyframes dp { 0%,80%,100%{opacity:.2;transform:scale(.8)} 40%{opacity:1;transform:scale(1)} }
 
+        @media (max-width: 768px) {
+            header { flex-wrap: wrap; gap: 8px 16px; padding: 12px 16px; }
+            nav { order: 3; width: 100%; margin-left: 0; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+            nav::-webkit-scrollbar { display: none; }
+            nav a { font-size: 0.8rem; padding: 5px 10px; }
+        }
         @media (max-width: 640px) {
             .trends-list { padding: 12px 12px 60px; }
             .trend-rank { font-size: 1.2rem; }

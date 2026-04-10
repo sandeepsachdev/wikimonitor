@@ -40,7 +40,7 @@
         .g-yellow{ color: #FBBC05; }
         .g-green { color: #34A853; }
 
-        nav { display: flex; gap: 4px; margin-left: auto; }
+        nav { display: flex; gap: 4px; margin-left: auto; flex-shrink: 0; }
         nav a {
             color: #8b949e;
             text-decoration: none;
@@ -49,6 +49,7 @@
             border-radius: 6px;
             border: 1px solid transparent;
             transition: all 0.15s;
+            white-space: nowrap;
         }
         nav a:hover { color: #e6edf3; background: #21262d; }
         nav a.active { color: #e6edf3; border-color: #30363d; background: #21262d; }
@@ -238,6 +239,13 @@
             color: #8b949e;
         }
 
+        @media (max-width: 768px) {
+            header { flex-wrap: wrap; gap: 8px 16px; padding: 12px 16px; }
+            nav { order: 3; width: 100%; margin-left: 0; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+            nav::-webkit-scrollbar { display: none; }
+            nav a { font-size: 0.8rem; padding: 5px 10px; }
+            .last-updated { margin-left: 0; }
+        }
         @media (max-width: 860px) {
             .main-grid { grid-template-columns: 1fr; }
             .side-panel { flex-direction: row; flex-wrap: wrap; }

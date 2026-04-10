@@ -47,7 +47,7 @@
         .dot.off { background: #f85149; animation: none; }
         @keyframes pulse { 0%,100%{opacity:1}50%{opacity:.4} }
 
-        nav { display: flex; gap: 4px; margin-left: auto; }
+        nav { display: flex; gap: 4px; margin-left: auto; flex-shrink: 0; }
         nav a {
             color: #8b949e;
             text-decoration: none;
@@ -305,6 +305,12 @@
             100%   { opacity: 0; }
         }
 
+        @media (max-width: 768px) {
+            header { flex-wrap: wrap; gap: 8px 16px; padding: 12px 16px; }
+            nav { order: 3; width: 100%; margin-left: 0; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
+            nav::-webkit-scrollbar { display: none; }
+            nav a { font-size: 0.8rem; padding: 5px 10px; }
+        }
         @media (max-width: 640px) {
             .card-grid { grid-template-columns: 1fr; padding: 12px; }
             .filter-bar { gap: 6px; }
