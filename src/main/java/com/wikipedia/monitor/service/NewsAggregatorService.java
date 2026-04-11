@@ -67,7 +67,8 @@ public class NewsAggregatorService {
     private static final Pattern LINK_TEXT   = Pattern.compile("<link[^>]*>(https?://[^<]+)</link>");
     private static final Pattern PUBDATE     = Pattern.compile("<(?:pubDate|updated|dc:date)[^>]*>(.*?)</(?:pubDate|updated|dc:date)>", Pattern.DOTALL);
     private static final Pattern DESCRIPTION = Pattern.compile("<(?:description|summary)[^>]*>(?:<!\\[CDATA\\[)?(.*?)(?:]]>)?</(?:description|summary)>", Pattern.DOTALL);
-    private static final Pattern HTML_TAG    = Pattern.compile("<[^>]+>");
+    private static final Pattern HTML_TAG      = Pattern.compile("<[^>]+>");
+    private static final Pattern NUMERIC_ENTITY = Pattern.compile("&#([xX][0-9a-fA-F]+|[0-9]+);");
 
     private final WebClient webClient;
     private final Sinks.Many<NewsItem> sink;
@@ -148,8 +149,8 @@ public class NewsAggregatorService {
             String pubDate = extract(PUBDATE, block);
             String rawDesc = extract(DESCRIPTION, block);
             String description = rawDesc != null
-                    ? HTML_TAG.matcher(decodeEntities(rawDesc)).replaceAll("").trim()
-                              .replaceAll("\\s+", " ")
+                    ? decodeEntities(HTML_TAG.matcher(decodeEntities(rawDesc)).replaceAll("").trim()
+                              .replaceAll("\\s+", " "))
                     : "";
             if (description.length() > 220) description = description.substring(0, 217) + "…";
 
@@ -184,13 +185,45 @@ public class NewsAggregatorService {
     }
 
     private String decodeEntities(String s) {
-        return s.replace("&amp;", "&")
-                .replace("&lt;", "<")
-                .replace("&gt;", ">")
-                .replace("&quot;", "\"")
-                .replace("&#39;", "'")
-                .replace("&apos;", "'")
-                .replace("&nbsp;", " ");
+        // Named entities — common in news feeds
+        s = s.replace("&amp;",    "&")
+             .replace("&lt;",     "<")
+             .replace("&gt;",     ">")
+             .replace("&quot;",   "\"")
+             .replace("&apos;",   "'")
+             .replace("&#39;",    "'")
+             .replace("&nbsp;",   " ")
+             .replace("&rsquo;",  "\u2019")
+             .replace("&lsquo;",  "\u2018")
+             .replace("&rdquo;",  "\u201D")
+             .replace("&ldquo;",  "\u201C")
+             .replace("&mdash;",  "\u2014")
+             .replace("&ndash;",  "\u2013")
+             .replace("&hellip;", "\u2026")
+             .replace("&bull;",   "\u2022")
+             .replace("&middot;", "\u00B7")
+             .replace("&copy;",   "\u00A9")
+             .replace("&reg;",    "\u00AE")
+             .replace("&trade;",  "\u2122");
+
+        // Numeric entities — &#8217; (decimal) and &#x2019; (hex)
+        Matcher m = NUMERIC_ENTITY.matcher(s);
+        if (!m.find()) return s;
+        StringBuffer sb = new StringBuffer();
+        m.reset();
+        while (m.find()) {
+            String ref = m.group(1);
+            try {
+                int code = ref.startsWith("x") || ref.startsWith("X")
+                        ? Integer.parseInt(ref.substring(1), 16)
+                        : Integer.parseInt(ref, 10);
+                m.appendReplacement(sb, Matcher.quoteReplacement(new String(Character.toChars(code))));
+            } catch (NumberFormatException e) {
+                m.appendReplacement(sb, Matcher.quoteReplacement(m.group(0)));
+            }
+        }
+        m.appendTail(sb);
+        return sb.toString();
     }
 
     public Flux<NewsItem> getNewsStream() {
