@@ -95,9 +95,19 @@ select, button, input {
             border-bottom: 1px solid #30363d;
             padding: 8px 24px;
             display: flex;
-            gap: 24px;
+            flex-wrap: wrap;
+            gap: 12px 24px;
             font-size: 0.8rem;
             color: #8b949e;
+            align-items: center;
+        }
+
+        .stats-controls {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            flex-wrap: wrap;
+            margin-left: auto;
         }
 
         .stat span { color: #e6edf3; font-weight: 600; }
@@ -225,6 +235,9 @@ select, button, input {
             nav { order: 3; width: 100%; margin-left: 0; overflow-x: auto; scrollbar-width: none; -webkit-overflow-scrolling: touch; }
             nav::-webkit-scrollbar { display: none; }
             nav a { font-size: 0.8rem; padding: 5px 10px; }
+            .stats-bar { padding: 8px 16px; }
+            .stats-controls { margin-left: 0; width: 100%; }
+            .stats-controls select, .stats-controls button { flex: 1; min-width: 0; }
         }
     </style>
 </head>
@@ -251,7 +264,7 @@ select, button, input {
     <div class="stat">New pages: <span id="stat-new">0</span></div>
     <div class="stat">Bot edits: <span id="stat-bots">0</span></div>
     <div class="stat">Status: <span id="stat-status">Connecting…</span></div>
-    <div style="margin-left:auto;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+    <div class="stats-controls">
         <select id="wiki-filter">
             <option value="">All wikis</option>
             <option value="enwiki" selected>English (enwiki)</option>
