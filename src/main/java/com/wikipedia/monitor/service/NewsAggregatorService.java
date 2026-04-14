@@ -81,7 +81,7 @@ public class NewsAggregatorService {
     public NewsAggregatorService() {
         this.webClient = WebClient.builder()
                 .defaultHeader("User-Agent", "Mozilla/5.0 (compatible; NewsBot/1.0)")
-                .codecs(c -> c.defaultCodecs().maxInMemorySize(8 * 1024 * 1024))
+                .codecs(c -> c.defaultCodecs().maxInMemorySize(2 * 1024 * 1024))
                 .build();
         this.sink = Sinks.many().multicast().onBackpressureBuffer(1000, false);
         this.sharedFlux = sink.asFlux().share();

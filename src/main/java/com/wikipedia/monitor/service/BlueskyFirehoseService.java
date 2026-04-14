@@ -21,6 +21,8 @@ public class BlueskyFirehoseService {
     private static final String JETSTREAM_URL =
             "wss://jetstream2.us-east.bsky.network/subscribe?wantedCollections=app.bsky.feed.post";
 
+    private static final int SINK_BUFFER = 512;
+
     private final Sinks.Many<BlueskyPost> sink;
     private final Flux<BlueskyPost> sharedFlux;
     private final ObjectMapper objectMapper;
@@ -29,7 +31,7 @@ public class BlueskyFirehoseService {
     public BlueskyFirehoseService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
         this.wsClient = new ReactorNettyWebSocketClient();
-        this.sink = Sinks.many().multicast().onBackpressureBuffer(2000, false);
+        this.sink = Sinks.many().multicast().onBackpressureBuffer(SINK_BUFFER, false);
         this.sharedFlux = sink.asFlux().share();
 
         connect();
@@ -50,6 +52,10 @@ public class BlueskyFirehoseService {
     private reactor.core.publisher.Mono<Void> attemptConnection() {
         return wsClient.execute(URI.create(JETSTREAM_URL), session ->
                 session.receive()
+                        // Sample BEFORE text extraction so un-sampled frames are released
+                        // immediately without allocating String objects. The firehose sends
+                        // thousands of messages per second; this caps processing to ~20/sec.
+                        .sample(Duration.ofMillis(50))
                         .map(msg -> msg.getPayloadAsText())
                         .flatMap(this::parsePost)
                         .filter(BlueskyPost::isCreate)

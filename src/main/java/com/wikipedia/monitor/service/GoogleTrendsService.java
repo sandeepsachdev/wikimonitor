@@ -9,9 +9,11 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 
 import java.time.Duration;
+import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -33,8 +35,15 @@ public class GoogleTrendsService {
     private static final Pattern NEWS_SOURCE_P  = Pattern.compile("<ht:news_item_source><!\\[CDATA\\[(.*?)]]></ht:news_item_source>|<ht:news_item_source>(.*?)</ht:news_item_source>");
     private static final Pattern NEWS_SNIPPET_P = Pattern.compile("<ht:news_item_snippet><!\\[CDATA\\[(.*?)]]></ht:news_item_snippet>|<ht:news_item_snippet>(.*?)</ht:news_item_snippet>");
 
+    private record CacheEntry(List<GoogleTrend> trends, Instant fetchedAt) {}
+
     private final WebClient webClient;
-    private volatile List<GoogleTrend> cache = Collections.emptyList();
+    // Per-geo result cache — avoids redundant HTTP calls when multiple clients
+    // request the same geo within the same poll interval.
+    private final Map<String, CacheEntry> geoCache = new ConcurrentHashMap<>();
+    // Per-geo shared stream — all SSE subscribers for the same geo share one
+    // Flux.interval rather than each creating their own polling loop.
+    private final Map<String, Flux<List<GoogleTrend>>> sharedStreams = new ConcurrentHashMap<>();
 
     public GoogleTrendsService() {
         this.webClient = WebClient.builder()
@@ -44,25 +53,38 @@ public class GoogleTrendsService {
     }
 
     public Mono<List<GoogleTrend>> fetchTrends(String geo) {
+        CacheEntry entry = geoCache.get(geo);
+        if (entry != null &&
+                Duration.between(entry.fetchedAt(), Instant.now()).compareTo(POLL_INTERVAL) < 0) {
+            return Mono.just(entry.trends());
+        }
         return webClient.get()
                 .uri(RSS_BASE + "?geo=" + geo)
                 .retrieve()
                 .bodyToMono(String.class)
                 .map(this::parseRss)
-                .doOnNext(trends -> cache = trends)
+                .doOnNext(trends -> geoCache.put(geo, new CacheEntry(trends, Instant.now())))
                 .onErrorResume(ex -> {
                     log.error("Failed to fetch Google Trends for {}: {}", geo, ex.getMessage());
-                    return Mono.just(cache);
+                    CacheEntry stale = geoCache.get(geo);
+                    return stale != null ? Mono.just(stale.trends()) : Mono.just(List.of());
                 });
     }
 
     public Flux<List<GoogleTrend>> trendStream(String geo) {
-        return Flux.interval(Duration.ZERO, POLL_INTERVAL)
-                .flatMap(tick -> fetchTrends(geo));
+        // computeIfAbsent ensures only one Flux.interval exists per geo regardless
+        // of how many SSE clients are connected. share() ref-counts subscribers and
+        // cancels the interval when the last subscriber disconnects.
+        return sharedStreams.computeIfAbsent(geo, g ->
+                Flux.interval(Duration.ZERO, POLL_INTERVAL)
+                        .flatMap(tick -> fetchTrends(g))
+                        .share()
+        );
     }
 
     public List<GoogleTrend> getCache() {
-        return cache;
+        return geoCache.isEmpty() ? List.of()
+                : geoCache.values().iterator().next().trends();
     }
 
     private List<GoogleTrend> parseRss(String xml) {
