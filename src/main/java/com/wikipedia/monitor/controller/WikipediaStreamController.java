@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
+import java.time.Duration;
 import java.util.concurrent.atomic.AtomicLong;
 
 @RestController
@@ -29,10 +30,16 @@ public class WikipediaStreamController {
                 ? streamService.getEditStreamForWiki(wiki)
                 : streamService.getEditStream();
 
-        return source.map(edit -> ServerSentEvent.<WikipediaEdit>builder()
-                .id(String.valueOf(counter.incrementAndGet()))
-                .event("edit")
-                .data(edit)
-                .build());
+        Flux<ServerSentEvent<WikipediaEdit>> edits = source
+                .map(edit -> ServerSentEvent.<WikipediaEdit>builder()
+                        .id(String.valueOf(counter.incrementAndGet()))
+                        .event("edit")
+                        .data(edit)
+                        .build());
+
+        Flux<ServerSentEvent<WikipediaEdit>> heartbeat = Flux.interval(Duration.ofSeconds(30))
+                .map(tick -> ServerSentEvent.<WikipediaEdit>builder().comment("keepalive").build());
+
+        return Flux.merge(edits, heartbeat);
     }
 }
