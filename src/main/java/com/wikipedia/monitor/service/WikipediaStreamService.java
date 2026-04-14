@@ -22,24 +22,24 @@ public class WikipediaStreamService {
     private static final String WIKIPEDIA_STREAM_URL =
             "https://stream.wikimedia.org/v2/stream/recentchange";
 
+    private final WebClient webClient = WebClient.builder()
+            .codecs(config -> config.defaultCodecs().maxInMemorySize(4 * 1024 * 1024))
+            .build();
+
     private final Sinks.Many<WikipediaEdit> sink;
     private final Flux<WikipediaEdit> sharedFlux;
     private final ObjectMapper objectMapper;
 
     public WikipediaStreamService(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
-        this.sink = Sinks.many().multicast().onBackpressureBuffer(1000, false);
+        this.sink = Sinks.many().multicast().onBackpressureBuffer(512, false);
         this.sharedFlux = sink.asFlux().share();
 
         connectToWikipediaStream();
     }
 
     private void connectToWikipediaStream() {
-        WebClient client = WebClient.builder()
-                .codecs(config -> config.defaultCodecs().maxInMemorySize(4 * 1024 * 1024))
-                .build();
-
-        client.get()
+        webClient.get()
                 .uri(WIKIPEDIA_STREAM_URL)
                 .accept(MediaType.TEXT_EVENT_STREAM)
                 .retrieve()
@@ -50,6 +50,9 @@ public class WikipediaStreamService {
                     return parseEdit(data);
                 })
                 .filter(edit -> "edit".equals(edit.type()) || "new".equals(edit.type()))
+                // Wikipedia can burst to 50+ edits/sec; cap at ~20/sec to avoid
+                // flooding downstream subscribers and the sink buffer.
+                .sample(Duration.ofMillis(50))
                 .retryWhen(Retry.backoff(Long.MAX_VALUE, Duration.ofSeconds(3))
                         .maxBackoff(Duration.ofSeconds(30))
                         .doBeforeRetry(signal ->
