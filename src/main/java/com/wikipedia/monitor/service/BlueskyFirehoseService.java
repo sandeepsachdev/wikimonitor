@@ -52,11 +52,12 @@ public class BlueskyFirehoseService {
     private reactor.core.publisher.Mono<Void> attemptConnection() {
         return wsClient.execute(URI.create(JETSTREAM_URL), session ->
                 session.receive()
-                        // Sample BEFORE text extraction so un-sampled frames are released
-                        // immediately without allocating String objects. The firehose sends
-                        // thousands of messages per second; this caps processing to ~20/sec.
-                        .sample(Duration.ofMillis(50))
+                        // Extract text FIRST so every WebSocketMessage's ByteBuf is
+                        // released back to the reactor-netty pool immediately. Sampling
+                        // before this call would keep dropped frames' off-heap ByteBufs
+                        // alive → DirectBuffer OOM. We sample the cheap heap Strings instead.
                         .map(msg -> msg.getPayloadAsText())
+                        .sample(Duration.ofMillis(50))
                         .flatMap(this::parsePost)
                         .filter(BlueskyPost::isCreate)
                         .doOnNext(post -> sink.tryEmitNext(post))

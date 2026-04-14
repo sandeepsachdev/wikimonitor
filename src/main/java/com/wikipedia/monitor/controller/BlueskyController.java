@@ -9,6 +9,8 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Flux;
 
+import java.time.Duration;
+
 @RestController
 public class BlueskyController {
 
@@ -26,11 +28,16 @@ public class BlueskyController {
                 ? firehoseService.getPostStreamForLang(lang)
                 : firehoseService.getPostStream();
 
-        return source
+        Flux<ServerSentEvent<BlueskyPost>> posts = source
                 .filter(p -> p.text() != null && !p.text().isBlank())
                 .map(post -> ServerSentEvent.<BlueskyPost>builder()
                         .event("post")
                         .data(post)
                         .build());
+
+        Flux<ServerSentEvent<BlueskyPost>> heartbeat = Flux.interval(Duration.ofSeconds(30))
+                .map(tick -> ServerSentEvent.<BlueskyPost>builder().comment("keepalive").build());
+
+        return Flux.merge(posts, heartbeat);
     }
 }
