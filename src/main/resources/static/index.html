@@ -332,7 +332,7 @@
         <a href="/twitter-trends.html">X Trends</a>
         <a href="/wikipedia.html">Live Feed</a>
         <a href="/bluesky.html">Bluesky</a>
-        <a href="/verse.html">Daily Verse</a>
+        <a id="nav-verse" href="/verse.html" style="display:none">Daily Verse</a>
     </nav>
 </header>
 
@@ -589,6 +589,14 @@
     });
 
     connect();
+</script>
+<script>
+(function(){
+    if (new URLSearchParams(location.search).get('bible') === 'true')
+        sessionStorage.setItem('bibleEnabled', 'true');
+    var el = document.getElementById('nav-verse');
+    if (el && sessionStorage.getItem('bibleEnabled') === 'true') el.style.display = '';
+})();
 </script>
 </body>
 </html>
