@@ -237,7 +237,7 @@
         <a href="/twitter-trends.html">X Trends</a>
         <a href="/wikipedia.html">Live Feed</a>
         <a href="/bluesky.html">Bluesky</a>
-        <a href="/verse.html" class="active">Daily Verse</a>
+        <a id="nav-verse" href="/verse.html" class="active" style="display:none">Daily Verse</a>
     </nav>
     <span class="date-badge" id="date-badge"></span>
 </header>
@@ -264,6 +264,18 @@
     <ol class="questions-list" id="questions-list"></ol>
 </div>
 
+<script>
+(function(){
+    if (new URLSearchParams(location.search).get('bible') === 'true')
+        sessionStorage.setItem('bibleEnabled', 'true');
+    if (sessionStorage.getItem('bibleEnabled') !== 'true') {
+        location.replace('/');
+        return;
+    }
+    var el = document.getElementById('nav-verse');
+    if (el) el.style.display = '';
+})();
+</script>
 <script>
     function render(entry) {
         // Verse panel
