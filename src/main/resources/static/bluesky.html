@@ -181,15 +181,23 @@
 
         .post-who { flex: 1; overflow: hidden; }
 
-        .post-did {
-            font-size: 0.78rem;
+        .post-display-name {
+            font-size: 0.82rem;
+            font-weight: 600;
+            color: #c9d1d9;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+        .post-display-name a { color: #c9d1d9; text-decoration: none; }
+        .post-display-name a:hover { color: #58a6ff; }
+        .post-handle {
+            font-size: 0.72rem;
             color: #8b949e;
             overflow: hidden;
             text-overflow: ellipsis;
             white-space: nowrap;
         }
-        .post-did a { color: #8b949e; text-decoration: none; }
-        .post-did a:hover { color: #58a6ff; }
 
         .post-time { font-size: 0.75rem; color: #8b949e; white-space: nowrap; }
 
@@ -338,16 +346,71 @@
         return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
     }
 
-    function initials(did) {
-        const parts = (did || '').split(':');
-        const key = parts[parts.length - 1] || '?';
-        return key.slice(0, 2).toUpperCase();
-    }
-
     function avatarHue(did) {
         let h = 0;
         for (let i = 0; i < did.length; i++) h = (h * 31 + did.charCodeAt(i)) & 0xffff;
         return h % 360;
+    }
+
+    // ── Handle resolution ─────────────────────────────────────────────────
+    const didHandleCache = new Map(); // did → {handle, displayName} | null (fetching)
+    const pendingDids    = new Set();
+
+    function shortDid(did) {
+        return (did || '').split(':').pop().slice(-8) || '…';
+    }
+
+    function initialsFor(did) {
+        const e = didHandleCache.get(did);
+        const src = e ? (e.displayName || e.handle || '') : '';
+        return src ? src.slice(0, 2).toUpperCase()
+                   : ((did || '').split(':').pop().slice(0, 2).toUpperCase() || '?');
+    }
+
+    async function resolveHandles() {
+        if (pendingDids.size === 0) return;
+        const batch = [...pendingDids].slice(0, 25);
+        batch.forEach(d => { pendingDids.delete(d); didHandleCache.set(d, null); });
+        try {
+            const qs = batch.map(d => `actors[]=${encodeURIComponent(d)}`).join('&');
+            const res = await fetch(`https://public.api.bsky.app/xrpc/app.bsky.actor.getProfiles?${qs}`);
+            if (!res.ok) throw new Error(res.status);
+            const data = await res.json();
+            const resolved = new Set();
+            (data.profiles || []).forEach(p => {
+                didHandleCache.set(p.did, { handle: p.handle || '', displayName: p.displayName || '' });
+                resolved.add(p.did);
+            });
+            batch.forEach(d => { if (!resolved.has(d)) didHandleCache.set(d, { handle: '', displayName: '' }); });
+            resolved.forEach(updateCardsForDid);
+        } catch {
+            batch.forEach(d => didHandleCache.delete(d));
+        }
+    }
+
+    function updateCardsForDid(did) {
+        const e = didHandleCache.get(did);
+        if (!e) return;
+        const nameText   = e.displayName || (e.handle ? '@' + e.handle : '');
+        const handleText = e.handle ? '@' + e.handle : '';
+        const ini        = (e.displayName || e.handle || '').slice(0, 2).toUpperCase();
+        if (!nameText) return;
+        document.querySelectorAll(`.post-card[data-did="${CSS.escape(did)}"]`).forEach(card => {
+            const nameLink = card.querySelector('.post-display-name a');
+            if (nameLink) nameLink.textContent = nameText;
+            const whoEl = card.querySelector('.post-who');
+            if (whoEl) {
+                let handleEl = card.querySelector('.post-handle');
+                if (handleText && !handleEl) {
+                    handleEl = document.createElement('div');
+                    handleEl.className = 'post-handle';
+                    whoEl.appendChild(handleEl);
+                }
+                if (handleEl) handleEl.textContent = handleText;
+            }
+            const avatarEl = card.querySelector('.avatar');
+            if (avatarEl && ini) avatarEl.textContent = ini;
+        });
     }
 
     function highlight(text, kw) {
@@ -385,8 +448,15 @@
         const kw         = kwInput.value.trim();
         const hue        = avatarHue(did);
 
+        if (!didHandleCache.has(did)) pendingDids.add(did);
+
+        const cached      = didHandleCache.get(did);
+        const nameText    = cached ? (cached.displayName || (cached.handle ? '@' + cached.handle : '')) : shortDid(did);
+        const handleText  = cached && cached.handle ? '@' + cached.handle : '';
+
         const card = document.createElement('div');
         card.className = 'post-card' + (hasImg ? ' has-image' : hasLnk ? ' has-link' : '');
+        card.dataset.did = did;
 
         const langTags = langs.slice(0, 3).map(l =>
             `<span class="tag lang">${esc(l)}</span>`).join('');
@@ -396,12 +466,13 @@
                 <a class="avatar" href="${esc(profileUrl)}" target="_blank" rel="noopener"
                    style="background:linear-gradient(135deg,hsl(${hue},70%,50%),hsl(${(hue+60)%360},70%,60%))"
                    title="${esc(did)}">
-                    ${initials(did)}
+                    ${esc(initialsFor(did))}
                 </a>
                 <div class="post-who">
-                    <div class="post-did">
-                        <a href="${esc(profileUrl)}" target="_blank" rel="noopener">${esc(did)}</a>
+                    <div class="post-display-name">
+                        <a href="${esc(profileUrl)}" target="_blank" rel="noopener">${esc(nameText)}</a>
                     </div>
+                    ${handleText ? `<div class="post-handle">${esc(handleText)}</div>` : ''}
                 </div>
                 <span class="post-time">${formatTime(createdAt)}</span>
             </div>
@@ -545,12 +616,14 @@
         autoScroll = distFromBottom < 120;
     });
 
-    const statsTimer = setInterval(updateStats, 1000);
+    const statsTimer   = setInterval(updateStats, 1000);
+    const resolveTimer = setInterval(resolveHandles, 2000);
 
     // ── Cleanup on navigation / tab hide ──────────────────────────────────────
     function cleanup() {
         clearInterval(dripTimer);
         clearInterval(statsTimer);
+        clearInterval(resolveTimer);
         if (eventSource) { eventSource.close(); eventSource = null; }
     }
     window.addEventListener('beforeunload', cleanup);
