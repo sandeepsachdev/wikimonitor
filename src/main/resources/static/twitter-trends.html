@@ -109,11 +109,15 @@
 
         /* ── Word cloud canvas ── */
         #cloud-wrap {
-            max-width: 680px;
+            max-width: min(680px, 80vw);
             margin: 32px auto 24px;
             aspect-ratio: 1 / 1;
             position: relative;
             background: #0d1117;
+        }
+
+        @media (max-width: 600px) {
+            #cloud-wrap { max-width: 85vw; margin: 16px auto; }
         }
 
         #cloud-canvas {
