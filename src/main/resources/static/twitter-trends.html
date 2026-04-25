@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>X / Twitter Trends</title>
+    <script src="https://cdn.jsdelivr.net/npm/wordcloud@1.2.2/src/wordcloud2.js"></script>
     <style>
         * { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -106,76 +107,24 @@
         }
         .updated-label span { color: #8b949e; }
 
-        /* ── Trends list ── */
-        .trends-list {
-            max-width: 720px;
-            margin: 0 auto;
-            padding: 16px 24px 60px;
+        /* ── Word cloud canvas ── */
+        #cloud-wrap {
+            max-width: 680px;
+            margin: 32px auto 24px;
+            aspect-ratio: 1 / 1;
+            position: relative;
+            background: #0d1117;
         }
 
-        /* ── Single trend row ── */
-        .trend-row {
-            display: grid;
-            grid-template-columns: 48px 1fr auto;
-            gap: 14px;
-            align-items: center;
-            padding: 14px 12px;
-            border-radius: 8px;
-            transition: background 0.15s;
-            border-bottom: 1px solid #21262d;
-            min-width: 0;
-        }
-        .trend-row:last-child { border-bottom: none; }
-        .trend-row:hover { background: #161b22; }
-
-        .trend-rank {
-            font-size: 1.5rem;
-            font-weight: 700;
-            color: #30363d;
-            text-align: right;
-            font-variant-numeric: tabular-nums;
-            flex-shrink: 0;
-        }
-
-        .trend-body { overflow: hidden; min-width: 0; }
-
-        .trend-name {
-            font-size: 1rem;
-            font-weight: 700;
-            color: #e6edf3;
-            text-decoration: none;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
+        #cloud-canvas {
             display: block;
-            transition: color 0.15s;
-        }
-        .trend-name:hover { color: #1d9bf0; }
-
-        .trend-bar-wrap {
-            height: 3px;
-            background: #21262d;
-            border-radius: 2px;
-            margin-top: 6px;
-            overflow: hidden;
-        }
-        .trend-bar-fill {
+            width: 100%;
             height: 100%;
-            border-radius: 2px;
-            background: linear-gradient(90deg, #1d9bf0, #0ea5e9);
-            transition: width 0.6s ease;
+            cursor: default;
         }
 
-        .post-count {
-            font-size: 0.72rem;
-            font-weight: 600;
-            color: #1d9bf0;
-            background: rgba(29,155,240,0.1);
-            border: 1px solid rgba(29,155,240,0.25);
-            border-radius: 10px;
-            padding: 2px 8px;
-            white-space: nowrap;
-            flex-shrink: 0;
+        @media (max-width: 720px) {
+            #cloud-wrap { max-width: 96vw; margin: 16px auto; }
         }
 
         /* ── Empty / loading ── */
@@ -267,59 +216,93 @@
     <div class="updated-label">Updated: <span id="update-time">—</span></div>
 </div>
 
-<div class="trends-list" id="trends-list">
+<div id="cloud-wrap">
     <div id="loading">
         <h2>Fetching trending topics…</h2>
         <div class="dot-pulse"><span></span><span></span><span></span><span></span></div>
     </div>
+    <canvas id="cloud-canvas" style="display:none"></canvas>
 </div>
 <div class="source-note">Data via <a href="https://trends24.in" target="_blank" rel="noopener">trends24.in</a> · refreshes every 15 min</div>
 
 <script>
-    const listEl      = document.getElementById('trends-list');
+    const cloudWrap    = document.getElementById('cloud-wrap');
+    const canvas       = document.getElementById('cloud-canvas');
     const countrySelect = document.getElementById('country-select');
-    const updateTime  = document.getElementById('update-time');
+    const updateTime   = document.getElementById('update-time');
 
-    let refreshTimer = null;
+    let refreshTimer  = null;
+    let currentTrends = [];
 
-    function esc(s) {
-        return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    function showLoading(msg) {
+        canvas.style.display = 'none';
+        cloudWrap.innerHTML  =
+            `<div id="loading"><h2>${msg}</h2>` +
+            (msg.includes('…') ? '<div class="dot-pulse"><span></span><span></span><span></span><span></span></div>' : '') +
+            `</div>` +
+            `<canvas id="cloud-canvas" style="display:none"></canvas>`;
     }
 
     // ── Render ───────────────────────────────────────────────────────────────
     function render(trends) {
-        if (!trends || trends.length === 0) {
-            listEl.innerHTML = '<div id="loading"><h2>No trends available for this region.</h2></div>';
+        currentTrends = trends || [];
+
+        if (!currentTrends.length) {
+            showLoading('No trends available for this region.');
             return;
         }
 
-        listEl.innerHTML = trends.map((t, i) => {
-            // Use post count as bar width proxy — approximate by rank (inverse)
-            const pct = Math.round(((trends.length - i) / trends.length) * 100);
+        // Remove any loading state and show canvas
+        const loadEl = cloudWrap.querySelector('#loading');
+        if (loadEl) loadEl.remove();
+        const cvs = cloudWrap.querySelector('#cloud-canvas');
+        cvs.style.display = 'block';
 
-            return `
-            <div class="trend-row">
-                <div class="trend-rank">${i + 1}</div>
-                <div class="trend-body">
-                    <a class="trend-name"
-                       href="${esc(t.searchUrl)}"
-                       target="_blank" rel="noopener">${esc(t.name)}</a>
-                    <div class="trend-bar-wrap">
-                        <div class="trend-bar-fill" style="width:${pct}%"></div>
-                    </div>
-                </div>
-                ${t.postCount
-                    ? `<span class="post-count">${esc(t.postCount)}</span>`
-                    : '<span></span>'}
-            </div>`;
-        }).join('');
+        // Size canvas to its CSS rendered square
+        const size = cloudWrap.clientWidth;
+        cvs.width  = size;
+        cvs.height = size;
+
+        // Weight: top trend = 40, last = 10, linear scale
+        const total = currentTrends.length;
+        const list  = currentTrends.map((t, i) => {
+            const w = Math.round(40 - (i / (total - 1 || 1)) * 30);
+            return [t.name, w];
+        });
+
+        function wordColor(word, weight) {
+            if (weight >= 38) return '#ffffff';
+            if (weight >= 30) return '#7dd3fc';
+            if (weight >= 20) return '#1d9bf0';
+            return '#4b9fd4';
+        }
+
+        WordCloud(cvs, {
+            list,
+            shape:        'circle',
+            gridSize:     Math.max(4, Math.round(size / 64)),
+            weightFactor: size / 260,
+            fontFamily:   '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
+            fontWeight:   '700',
+            color:        wordColor,
+            rotateRatio:  0.4,
+            rotationSteps: 2,          // 0° and 90° only for readability
+            backgroundColor: '#0d1117',
+            click(item) {
+                const t = currentTrends.find(x => x.name === item[0]);
+                if (t) window.open(t.searchUrl, '_blank', 'noopener');
+            },
+            hover(item) {
+                cvs.style.cursor = item ? 'pointer' : 'default';
+            }
+        });
 
         updateTime.textContent = new Date().toLocaleTimeString();
     }
 
     // ── Fetch ────────────────────────────────────────────────────────────────
     function load(country) {
-        listEl.innerHTML = '<div id="loading"><h2>Fetching trending topics…</h2><div class="dot-pulse"><span></span><span></span><span></span><span></span></div></div>';
+        showLoading('Fetching trending topics…');
 
         fetch(`/api/twitter/trends?country=${encodeURIComponent(country)}`)
             .then(r => {
@@ -327,9 +310,7 @@
                 return r.json();
             })
             .then(render)
-            .catch(() => {
-                listEl.innerHTML = '<div id="loading"><h2>Could not load trends — try again shortly.</h2></div>';
-            });
+            .catch(() => showLoading('Could not load trends — try again shortly.'));
     }
 
     function scheduleRefresh(country) {
