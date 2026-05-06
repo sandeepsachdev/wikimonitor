@@ -26,9 +26,13 @@ public class VerseService {
         verses = objectMapper.readValue(is, new TypeReference<>() {});
     }
 
-    public DailyVerse getTodayVerse() {
-        int dayOfYear = LocalDate.now().getDayOfYear();
+    public DailyVerse getVerseForDate(LocalDate date) {
+        int dayOfYear = date.getDayOfYear();
         int index = (dayOfYear - 1) % verses.size();
         return verses.get(index);
+    }
+
+    public DailyVerse getTodayVerse() {
+        return getVerseForDate(LocalDate.now());
     }
 }

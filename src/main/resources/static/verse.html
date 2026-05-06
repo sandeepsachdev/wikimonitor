@@ -50,7 +50,7 @@
             border-color: #30363d;
         }
 
-        /* ── Refresh button ── */
+        /* ── Date badge + nav ── */
         .date-badge {
             background: #21262d;
             border: 1px solid #30363d;
@@ -60,6 +60,24 @@
             font-size: 0.875rem;
             margin-left: 12px;
         }
+
+        .verse-nav {
+            display: flex;
+            gap: 4px;
+        }
+        .verse-nav button {
+            background: #21262d;
+            border: 1px solid #30363d;
+            color: #8b949e;
+            border-radius: 6px;
+            padding: 5px 12px;
+            font-size: 1rem;
+            cursor: pointer;
+            line-height: 1;
+            transition: all 0.15s;
+        }
+        .verse-nav button:hover:not(:disabled) { color: #e6edf3; background: #30363d; }
+        .verse-nav button:disabled { opacity: 0.25; cursor: default; }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(8px); }
@@ -240,6 +258,10 @@
         <a id="nav-verse" href="/verse.html" class="active" style="display:none">Daily Verse</a>
     </nav>
     <span class="date-badge" id="date-badge"></span>
+    <div class="verse-nav">
+        <button id="prev-verse" title="Previous day">&#8592;</button>
+        <button id="next-verse" title="Next day" disabled>&#8594;</button>
+    </div>
 </header>
 
 <div class="top-row">
@@ -277,17 +299,26 @@
 })();
 </script>
 <script>
+    const todayMidnight = new Date(); todayMidnight.setHours(0,0,0,0);
+    let currentDate = new Date(todayMidnight);
+
+    function toISO(d) { return d.toISOString().slice(0,10); }
+
+    function updateHeader() {
+        const isToday = currentDate.getTime() === todayMidnight.getTime();
+        document.getElementById('date-badge').textContent =
+            currentDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+        document.querySelector('.panel-verse .label').textContent =
+            isToday ? '📖 Today\'s Challenge' : '📖 Challenge';
+        document.getElementById('next-verse').disabled = isToday;
+    }
+
     function render(entry) {
-        // Verse panel
         document.getElementById('verse-text').textContent = entry.text;
         document.getElementById('verse-ref').textContent = `— ${entry.reference}  (${entry.version})`;
-
-        // Insight panel
         document.getElementById('quote-text').textContent = entry.insight.quote;
         const attr = document.getElementById('attribution');
         attr.innerHTML = `${entry.insight.author} <span class="work">— ${entry.insight.work}</span>`;
-
-        // Questions panel
         const list = document.getElementById('questions-list');
         list.innerHTML = '';
         entry.questions.forEach((q, i) => {
@@ -295,24 +326,33 @@
             li.innerHTML = `<span class="q-num">${i + 1}</span><span>${q}</span>`;
             list.appendChild(li);
         });
-
-        // Animate top row and questions in
         [document.querySelector('.top-row'), document.querySelector('.panel-questions')].forEach((el, i) => {
             el.style.animation = 'none';
-            el.offsetHeight; // reflow
+            el.offsetHeight;
             el.style.animation = `fadeIn 0.4s ease-out ${i * 0.15}s both`;
         });
     }
 
-    document.getElementById('date-badge').textContent =
-        new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+    function loadVerse() {
+        updateHeader();
+        fetch(`/api/verse/today?date=${toISO(currentDate)}`)
+            .then(r => r.json())
+            .then(render)
+            .catch(() => {
+                document.getElementById('verse-text').textContent = 'Could not load verse.';
+            });
+    }
 
-    fetch('/api/verse/today')
-        .then(r => r.json())
-        .then(render)
-        .catch(() => {
-            document.getElementById('verse-text').textContent = 'Could not load today\'s verse.';
-        });
+    document.getElementById('prev-verse').addEventListener('click', () => {
+        currentDate.setDate(currentDate.getDate() - 1);
+        loadVerse();
+    });
+    document.getElementById('next-verse').addEventListener('click', () => {
+        currentDate.setDate(currentDate.getDate() + 1);
+        loadVerse();
+    });
+
+    loadVerse();
 </script>
 </body>
 </html>
